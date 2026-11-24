@@ -425,7 +425,8 @@
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
         dmg: ws.dmg, kb: ws.kb, range: ws.range || 250, dist: 0,
-        life: 1.2
+        life: 0.55,
+        trail: []
       });
       player.shootCd = ws.cooldown || 0.3;
       player.ammo = Math.max(0, (player.ammo || 0) - 1);
@@ -538,6 +539,11 @@
   }
   function updateProjectiles(dt) {
     for (const pr of projectiles) {
+      // smoke trail points (quick fade)
+      if (!pr.trail) pr.trail = [];
+      pr.trail.push({ x: pr.x, y: pr.y, t: 0 });
+      for (const p of pr.trail) p.t += dt;
+      pr.trail = pr.trail.filter((p) => p.t < 0.12);
       pr.x += pr.vx * dt;
       pr.y += pr.vy * dt;
       pr.dist += Math.hypot(pr.vx, pr.vy) * dt;
@@ -972,13 +978,25 @@
     items.sort((a, b) => a.y - b.y);
     for (const it of items) it.f();
     if (debug) drawDebug();
-    // projectiles
+    // projectiles: single-pixel flash + quick smoke trail
     for (const pr of projectiles) {
+      // smoke trail (older = fainter)
+      if (pr.trail) {
+        for (const p of pr.trail) {
+          const a = 1 - p.t / 0.12;
+          const x = Math.round(p.x - camX), y = Math.round(p.y - camY);
+          ctx.fillStyle = `rgba(160,160,160,${(a * 0.45).toFixed(3)})`;
+          ctx.fillRect(x, y, 1, 1);
+          if (a > 0.5) {
+            ctx.fillStyle = `rgba(90,90,90,${(a * 0.25).toFixed(3)})`;
+            ctx.fillRect(x + 1, y, 1, 1);
+          }
+        }
+      }
+      // bright single-pixel flash at tip
       const x = Math.round(pr.x - camX), y = Math.round(pr.y - camY);
-      ctx.fillStyle = "#f5e7a0";
-      ctx.fillRect(x - 2, y - 1, 4, 2);
-      ctx.fillStyle = "#fff8c0";
-      ctx.fillRect(x - 1, y - 0.5, 2, 1);
+      ctx.fillStyle = "#fffef0";
+      ctx.fillRect(x, y, 1, 1);
     }
     // pickups
     for (const pk of pickups) {
