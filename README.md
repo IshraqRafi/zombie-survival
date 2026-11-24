@@ -1,22 +1,27 @@
-# Zombie Survival (sprite-test)
+# Zombie Survival
 
-Top-down zombie prototype on Sara's pixel sprites. Plain HTML + Canvas 2D, no build step.
+Top-down zombie survival prototype using Sara's pixel sprites.
 
-```bash
-./sync-assets.sh                      # re-copy Sara's exports into assets/ after any re-export
-python3 -m http.server 8765 --bind 127.0.0.1
-```
-Open http://127.0.0.1:8765/
+## Phase 1
+- Stamina system (sprint drain + regen with hysteresis)
+- Wave scaling (time + kill based)
+- Survival timer + kill counter
+- Enhanced HUD and death screen
 
-**Controls**: WASD/arrows move (8-dir) · Shift sprint (stamina) · Left click / J / Space swing (click faces the cursor) · 1-4 pick weapon, Q/E cycle · B or F1 debug boxes · R reset.
+## Phase 2
+- **Pistol** with projectiles (press 5 or cycle to it; limited ammo that slowly regenerates)
+- **Health pickups** (green crosses) — drop from kills + occasional world spawns
+- **Zombie variants**:
+  - zombie_1: normal (100 HP, normal speed)
+  - zombie_2: fast runner (70 HP, 35% faster)
+- Realistic SFX + rain atmosphere
 
-**Current features**:
-- Melee combat with 4 weapons
-- Stamina for sprint
-- Score (kills), survival time, and wave system
-- Zombie AI (sense / chase / attack) with line of sight
-- Death screen with final stats
+## Controls
+- WASD / Arrows: move
+- Shift: sprint (uses stamina)
+- Click or J: attack (melee swing or shoot)
+- 1–5 or Q/E: switch weapons
+- R: restart
+- B / F1: debug overlays
 
-Everything (sheet rows, frame counts, timings, weapon grip/angle/scale/order/flip_v, hit frames, reach boxes, hurtboxes, collision ellipse) is read by name from the JSON in `assets/` at load time; no row indices are hardcoded.
-
-Verify: `node verify-zombie.mjs` (needs the server running). Screens go to `screens/zombie-*.png`.
+Open `index.html` in a browser or run a local server.

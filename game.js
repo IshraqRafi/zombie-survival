@@ -23,6 +23,13 @@
     _default: { dmg: 40, kb: 140, type: "melee" },
   };
   const PICKUP_HEAL = 35;
+  const VARIANT_STATS = {
+    zombie_1: { hp: 100, speed: 1.0, dropChance: 0.25 },  // normal
+    zombie_2: { hp: 70, speed: 1.35, dropChance: 0.15 },   // fast runner
+    _default: { hp: 100, speed: 1.0, dropChance: 0.2 },
+  };
+  const MAX_AMMO = 24;
+  const AMMO_REGEN_RATE = 0.25; // ammo per second when not firing
   // Obstacles (minimal; they exist so line of sight means something).
   const WALLS = [
     [300, 220, 96, 24], [600, 160, 24, 120], [420, 470, 140, 24],
@@ -359,7 +366,7 @@
     Object.assign(player, {
       x: WORLD_W / 2, y: WORLD_H / 2 + 40, dir: "down", anim: "idle", frame: 0, t: 0,
       hp: PLAYER_HP, stamina: MAX_STAMINA, canSprint: true, dead: false, inv: 0, kx: 0, ky: 0, hitSet: new Set(), flash: 0,
-      weapon: player.weapon || A.p.weaponNames[0], queued: false,
+      weapon: player.weapon || A.p.weaponNames[0], ammo: MAX_AMMO, queued: false,
     });
   }
   function setPlayerAnim(anim) {
@@ -371,7 +378,7 @@
     if (player.dead) return;
     const ws = WEAPON_STATS[player.weapon] || WEAPON_STATS._default;
     if (ws.type === "ranged") {
-      if (player.anim === ATTACK || (player.shootCd || 0) > 0) return;
+      if (player.anim === ATTACK || (player.shootCd || 0) > 0 || (player.ammo || 0) <= 0) return;
       if (faceX !== undefined) player.dir = dirFromVec(faceX, faceY, player.dir);
       // fire from weapon tip (roughly hand position)
       const angle = Math.atan2(faceY || 0, faceX || 1);
@@ -388,6 +395,7 @@
         life: 1.2
       });
       player.shootCd = ws.cooldown || 0.3;
+      player.ammo = Math.max(0, (player.ammo || 0) - 1);
       play(Math.random() < 0.6 ? "shot" : "shot2", 0.75, 0.92 + Math.random() * 0.12);
       setTimeout(() => play("shell", 0.45, 0.9 + Math.random() * 0.2), 180 + Math.random()*80);
       log.push({ t: time, ev: "shoot", weapon: player.weapon });
@@ -433,6 +441,10 @@
       p.stamina = Math.max(0, p.stamina - STAMINA_DRAIN * dt);
     } else {
       p.stamina = Math.min(MAX_STAMINA, p.stamina + STAMINA_REGEN * dt);
+    }
+    // ammo regen
+    if ((p.ammo || 0) < MAX_AMMO && (p.shootCd || 0) <= 0) {
+      p.ammo = Math.min(MAX_AMMO, (p.ammo || 0) + AMMO_REGEN_RATE * dt);
     }
     // knockback decay
     if (p.kx || p.ky) {
@@ -567,7 +579,9 @@
       this.id = nextZombieId++;
       this.variant = variant; this.x = x; this.y = y;
       this.dir = DIRS[(Math.random() * 4) | 0];
-      this.hp = ZOMBIE_HP; this.kx = 0; this.ky = 0;
+      const vs = VARIANT_STATS[variant] || VARIANT_STATS._default;
+      this.hp = vs.hp; this.maxHp = vs.hp; this.speedMult = vs.speed; this.dropChance = vs.dropChance;
+      this.kx = 0; this.ky = 0;
       this.anim = "idle"; this.frame = 0; this.t = 0; this.done = false;
       this.state = "wander"; this.stateT = 0; this.alpha = 1;
       this.target = null; this.pause = rand(0.5, 2);
@@ -590,7 +604,12 @@
       this.kx = (dx / d) * kb; this.ky = (dy / d) * kb;
       this.dir = dirFromVec(-dx, -dy, this.dir); // face the attacker
       this.lastSeen = { x: player.x, y: player.y };
-      if (this.hp <= 0) { this.setState("death"); this.setAnim("death"); stats.kills++; play("hit", 0.45, 0.55); }
+      if (this.hp <= 0) {
+        this.setState("death"); this.setAnim("death"); stats.kills++; play("hit", 0.45, 0.55);
+        if (Math.random() < this.dropChance && pickups.length < 5) {
+          pickups.push({ x: this.x, y: this.y, type: "health", t: 0 });
+        }
+      }
       else { this.setState("hurt"); this.setAnim("hurt"); this.anim = "hurt"; this.frame = 0; this.t = 0; this.done = false; }
     }
     advance(dt) {
@@ -657,7 +676,7 @@
           } else {
             this.setAnim("walk");
             const px = this.x, py = this.y;
-            const d = this.steerTo(this.target.x, this.target.y, Z_WALK, dt);
+            const d = this.steerTo(this.target.x, this.target.y, Z_WALK * this.speedMult, dt);
             const stuck = Math.hypot(this.x - px, this.y - py) < Z_WALK * dt * 0.2;
             if (d < 4 || stuck || this.stateT > 8) { this.pause = rand(1, 3); this.stateT = 0; }
           }
@@ -680,7 +699,7 @@
             this.setState("attack"); this.setAnim("attack"); this.dealt = false; break;
           }
           const tgt = sees ? player : this.lastSeen;
-          const d = this.steerTo(tgt.x, tgt.y, Z_RUN, dt);
+          const d = this.steerTo(tgt.x, tgt.y, Z_RUN * this.speedMult, dt);
           if (!sees && d < 4) { this.setState("wander"); this.pause = rand(1, 2); }
           // face player squarely when close (helps reach line up)
           if (sees && d < 26) this.dir = dirFromVec(player.x - this.x, player.y - this.y, this.dir);
@@ -967,7 +986,8 @@
     hpFill.style.width = (player.hp / PLAYER_HP) * 100 + "%";
     stamFill.style.width = (player.stamina / MAX_STAMINA) * 100 + "%";
     const survived = Math.floor(time);
-    statsLabel.textContent = `Kills: ${stats.kills} · Time: ${survived}s · Wave ${stats.wave}`;
+    const ammoTxt = player.weapon === "pistol" ? ` · Ammo ${Math.floor(player.ammo || 0)}` : "";
+    statsLabel.textContent = `Kills: ${stats.kills} · Time: ${survived}s · Wave ${stats.wave}${ammoTxt}`;
     camX = clamp(player.x - viewW / 2, 0, Math.max(0, WORLD_W - viewW));
     camY = clamp(player.y - 20 - viewH / 2, 0, Math.max(0, WORLD_H - viewH));
     draw();
