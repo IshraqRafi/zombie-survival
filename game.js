@@ -308,53 +308,53 @@
     return { x: 40, y: 60 };
   }
 
-  // ---------- audio (realistic CC0 / free-for-commercial) ----------
+  // ---------- audio (assets/sfx) ----------
   const SFX = {};
   let footLoop = null, rainLoop = null;
   function loadSfx() {
     const map = {
-      step: "assets/audio/step.ogg",           // fallback short
-      step2: "assets/audio/step2.ogg",
-      swing: "assets/audio/realistic/sword_whoosh.mp3",
-      knife: "assets/audio/realistic/knife_noise.mp3",
-      hit: "assets/audio/realistic/sword_impact.mp3",
-      punch: "assets/audio/realistic/punching.mp3",
-      shot: "assets/audio/realistic/handgun_50cal.mp3",
-      shot2: "assets/audio/realistic/ar15_gunfire.mp3",
-      shell: "assets/audio/realistic/shell_drop.mp3",
-      blood: "assets/audio/realistic/blood_squelch.mp3",
-      pickup: "assets/audio/pickup.ogg",
-      hurt: "assets/audio/realistic/agony_yell.mp3",
-      foot: "assets/audio/realistic/footsteps_grass.mp3",
-      rain: "assets/audio/realistic/rain_ambient.mp3",
+      bat_swing: "assets/sfx/bat_swing.mp3",
+      sword_swing: "assets/sfx/sword_swing.mp3",
+      handgun: "assets/sfx/handgun.mp3",
+      hit: "assets/sfx/hit.mp3",
+      hit2: "assets/sfx/hit2.mp3",
+      hit3: "assets/sfx/hit3.mp3",
+      walking: "assets/sfx/walking.mp3",
+      rain: "assets/sfx/rain.mp3",
+      zombie_groan: "assets/sfx/zombie_groan.mp3",
+      zombie_groan2: "assets/sfx/zombie_groan2.mp3",
+      zombie_scream: "assets/sfx/zombie_scream.mp3",
     };
     for (const [k, src] of Object.entries(map)) {
       const a = new Audio(src);
       a.preload = "auto";
-      a.volume = 0.55;
-      if (k === "foot" || k === "rain") a.loop = true;
+      a.volume = 0.6;
+      if (k === "walking" || k === "rain") a.loop = true;
       SFX[k] = a;
     }
-    // start soft rain ambience
     rainLoop = SFX.rain;
-    rainLoop.volume = 0.22;
+    rainLoop.volume = 0.18;
     rainLoop.play().catch(() => {});
   }
   function play(name, vol = 1, rate = 1) {
     const a = SFX[name];
     if (!a) return;
     const c = a.cloneNode();
-    c.volume = Math.min(1, (a.volume || 0.55) * vol);
+    c.volume = Math.min(1, (a.volume || 0.6) * vol);
     c.playbackRate = rate;
     c.play().catch(() => {});
     return c;
   }
+  function playHit(vol = 0.7) {
+    const names = ["hit", "hit2", "hit3"];
+    play(names[(Math.random() * names.length) | 0], vol, 0.9 + Math.random() * 0.2);
+  }
   function setFootsteps(on, sprint) {
-    if (!footLoop) footLoop = SFX.foot;
+    if (!footLoop) footLoop = SFX.walking;
     if (on) {
       if (footLoop.paused) footLoop.play().catch(() => {});
-      footLoop.volume = sprint ? 0.38 : 0.28;
-      footLoop.playbackRate = sprint ? 1.25 : 1.0;
+      footLoop.volume = sprint ? 0.42 : 0.3;
+      footLoop.playbackRate = sprint ? 1.3 : 1.0;
     } else {
       if (!footLoop.paused) footLoop.pause();
     }
@@ -396,15 +396,14 @@
       });
       player.shootCd = ws.cooldown || 0.3;
       player.ammo = Math.max(0, (player.ammo || 0) - 1);
-      play(Math.random() < 0.6 ? "shot" : "shot2", 0.75, 0.92 + Math.random() * 0.12);
-      setTimeout(() => play("shell", 0.45, 0.9 + Math.random() * 0.2), 180 + Math.random()*80);
+      play("handgun", 0.8, 0.95 + Math.random() * 0.1);
       log.push({ t: time, ev: "shoot", weapon: player.weapon });
       return;
     }
     if (player.anim === ATTACK) return;
     if (faceX !== undefined) player.dir = dirFromVec(faceX, faceY, player.dir);
     setPlayerAnim(ATTACK);
-    play(Math.random() < 0.7 ? "swing" : "knife", 0.65, 0.88 + Math.random() * 0.24);
+    play(player.weapon === "machete" ? "sword_swing" : "bat_swing", 0.7, 0.9 + Math.random() * 0.2);
   }
   function setWeapon(name) {
     if (name !== "pistol" && !A.p.weapons.weapons[name]) return;
@@ -460,7 +459,7 @@
         p.dir = dirFromVec(ix, iy, p.dir);
         const sp = sprint ? RUN_SPEED : WALK_SPEED;
         moveWithCollision(p, P.foot, ix * sp * dt, iy * sp * dt);
-        // realistic continuous footsteps
+        // continuous footsteps
         setFootsteps(true, sprint);
       } else {
         setFootsteps(false);
@@ -495,8 +494,7 @@
               const ws = WEAPON_STATS[p.weapon] || WEAPON_STATS._default;
               z.takeHit(ws.dmg, ws.kb, p.x, p.y);
               stats.playerHits++;
-              play(Math.random() < 0.5 ? "hit" : "punch", 0.7, 0.85 + Math.random() * 0.3);
-              play("blood", 0.35, 0.9 + Math.random() * 0.2);
+              playHit(0.75);
               spawnBlood(z.x, z.y - 10, 4);
               log.push({ t: time, ev: "playerHit", zombie: z.id, weapon: p.weapon, frame: p.frame });
             }
@@ -517,8 +515,7 @@
         if (rectsOverlap([pr.x - 3, pr.y - 3, 6, 6], bodyRect(z))) {
           z.takeHit(pr.dmg, pr.kb, pr.x, pr.y);
           stats.playerHits++;
-          play("punch", 0.55, 1.05 + Math.random() * 0.15);
-          play("blood", 0.4, 0.95 + Math.random() * 0.15);
+          playHit(0.6);
           spawnBlood(z.x, z.y - 8, 3);
           pr.life = 0;
           log.push({ t: time, ev: "bulletHit", zombie: z.id });
@@ -544,7 +541,7 @@
       if (Math.hypot(pk.x - player.x, pk.y - player.y) < 16 && !player.dead) {
         if (pk.type === "health") {
           player.hp = Math.min(PLAYER_HP, player.hp + PICKUP_HEAL);
-          play("pickup", 0.7, 1.05);
+          playHit(0.45); // soft hit as pickup cue
           log.push({ t: time, ev: "pickup", type: "health" });
         }
         pickups.splice(i, 1);
@@ -562,7 +559,7 @@
     const dx = p.x - fromX, dy = p.y - fromY, d = Math.hypot(dx, dy) || 1;
     p.kx = (dx / d) * 160; p.ky = (dy / d) * 160;
     stats.zombieHits++;
-    play("hurt", 0.6, 0.85 + Math.random() * 0.2);
+    play("zombie_scream", 0.55, 0.9 + Math.random() * 0.15);
     if (p.hp <= 0) {
       p.dead = true; setPlayerAnim("idle");
       const survived = Math.floor(time);
@@ -585,7 +582,7 @@
       this.anim = "idle"; this.frame = 0; this.t = 0; this.done = false;
       this.state = "wander"; this.stateT = 0; this.alpha = 1;
       this.target = null; this.pause = rand(0.5, 2);
-      this.lastSeen = null; this.lostT = 0; this.dealt = false; this.cooldown = 0;
+      this.lastSeen = null; this.lostT = 0; this.dealt = false; this.cooldown = 0; this.groanT = rand(2, 6);
     }
     hittable() {
       return this.state !== "death" && this.state !== "decay" && this.state !== "fade" && A.z.hurtActive[this.anim] !== false;
@@ -605,7 +602,7 @@
       this.dir = dirFromVec(-dx, -dy, this.dir); // face the attacker
       this.lastSeen = { x: player.x, y: player.y };
       if (this.hp <= 0) {
-        this.setState("death"); this.setAnim("death"); stats.kills++; play("hit", 0.45, 0.55);
+        this.setState("death"); this.setAnim("death"); stats.kills++; playHit(0.5);
         if (Math.random() < this.dropChance && pickups.length < 5) {
           pickups.push({ x: this.x, y: this.y, type: "health", t: 0 });
         }
@@ -656,6 +653,18 @@
     solid() { return this.state !== "death" && this.state !== "decay" && this.state !== "fade"; }
     update(dt) {
       this.stateT += dt; this.cooldown = Math.max(0, this.cooldown - dt);
+      // occasional zombie vocalizations
+      if (this.solid()) {
+        this.groanT -= dt;
+        if (this.groanT <= 0) {
+          this.groanT = rand(4, 9);
+          if (this.state === "chase" || this.state === "sense") {
+            play(Math.random() < 0.4 ? "zombie_scream" : (Math.random() < 0.5 ? "zombie_groan" : "zombie_groan2"), 0.4, 0.85 + Math.random() * 0.3);
+          } else {
+            play(Math.random() < 0.5 ? "zombie_groan" : "zombie_groan2", 0.28, 0.8 + Math.random() * 0.4);
+          }
+        }
+      }
       if (this.kx || this.ky) {
         moveWithCollision(this, A.z.foot, this.kx * dt, this.ky * dt);
         const k = Math.exp(-9 * dt); this.kx *= k; this.ky *= k;
