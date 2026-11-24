@@ -1,0 +1,1518 @@
+{
+ "format_version": 1,
+ "coords": "pixels inside a 64x64 frame cell; origin top-left, +x right, +y down. rect=[x,y,w,h]; polygon=[[x,y],...]. Right-facing rows are already mirrored. To place a box in the world, subtract the sprite origin (feet pivot) first.",
+ "pivot": [
+  32,
+  56
+ ],
+ "pivot_note": "feet pivot = (32,56). Usual node origin. World box = node_pos + (box - pivot).",
+ "collision": {
+  "down": {
+   "rect": [
+    24,
+    53,
+    16,
+    5
+   ],
+   "ellipse": {
+    "cx": 32.0,
+    "cy": 55.5,
+    "rx": 8.0,
+    "ry": 2.5
+   }
+  },
+  "left": {
+   "rect": [
+    25,
+    53,
+    11,
+    5
+   ],
+   "ellipse": {
+    "cx": 30.5,
+    "cy": 55.5,
+    "rx": 5.5,
+    "ry": 2.5
+   }
+  },
+  "right": {
+   "rect": [
+    28,
+    53,
+    11,
+    5
+   ],
+   "ellipse": {
+    "cx": 33.5,
+    "cy": 55.5,
+    "rx": 5.5,
+    "ry": 2.5
+   }
+  },
+  "up": {
+   "rect": [
+    24,
+    53,
+    16,
+    5
+   ],
+   "ellipse": {
+    "cx": 32.0,
+    "cy": 55.5,
+    "rx": 8.0,
+    "ry": 2.5
+   }
+  }
+ },
+ "hurtbox": {
+  "down": {
+   "rect": [
+    18,
+    10,
+    28,
+    47
+   ],
+   "note": "whole body incl. backpack, 1 px inset"
+  },
+  "left": {
+   "rect": [
+    22,
+    10,
+    23,
+    47
+   ],
+   "note": "whole body incl. backpack, 1 px inset"
+  },
+  "right": {
+   "rect": [
+    19,
+    10,
+    23,
+    47
+   ],
+   "note": "whole body incl. backpack, 1 px inset"
+  },
+  "up": {
+   "rect": [
+    19,
+    10,
+    26,
+    47
+   ],
+   "note": "whole body incl. backpack, 1 px inset"
+  }
+ },
+ "hurtbox_frames": {
+  "idle_down": [
+   [
+    17,
+    10,
+    30,
+    48
+   ],
+   [
+    17,
+    10,
+    30,
+    48
+   ],
+   [
+    17,
+    9,
+    30,
+    49
+   ],
+   [
+    17,
+    9,
+    30,
+    49
+   ]
+  ],
+  "idle_left": [
+   [
+    21,
+    10,
+    25,
+    48
+   ],
+   [
+    21,
+    10,
+    25,
+    48
+   ],
+   [
+    21,
+    9,
+    25,
+    49
+   ],
+   [
+    21,
+    9,
+    25,
+    49
+   ]
+  ],
+  "idle_right": [
+   [
+    18,
+    10,
+    25,
+    48
+   ],
+   [
+    18,
+    10,
+    25,
+    48
+   ],
+   [
+    18,
+    9,
+    25,
+    49
+   ],
+   [
+    18,
+    9,
+    25,
+    49
+   ]
+  ],
+  "idle_up": [
+   [
+    18,
+    10,
+    28,
+    48
+   ],
+   [
+    18,
+    10,
+    28,
+    48
+   ],
+   [
+    18,
+    9,
+    28,
+    49
+   ],
+   [
+    18,
+    9,
+    28,
+    49
+   ]
+  ],
+  "walk_down": [
+   [
+    17,
+    11,
+    30,
+    47
+   ],
+   [
+    17,
+    10,
+    30,
+    48
+   ],
+   [
+    17,
+    9,
+    30,
+    49
+   ],
+   [
+    17,
+    10,
+    30,
+    48
+   ],
+   [
+    17,
+    11,
+    30,
+    47
+   ],
+   [
+    17,
+    10,
+    30,
+    48
+   ],
+   [
+    17,
+    9,
+    30,
+    49
+   ],
+   [
+    17,
+    10,
+    30,
+    48
+   ]
+  ],
+  "walk_left": [
+   [
+    21,
+    11,
+    25,
+    47
+   ],
+   [
+    21,
+    10,
+    25,
+    48
+   ],
+   [
+    21,
+    9,
+    25,
+    49
+   ],
+   [
+    21,
+    10,
+    25,
+    48
+   ],
+   [
+    21,
+    11,
+    25,
+    47
+   ],
+   [
+    21,
+    10,
+    25,
+    48
+   ],
+   [
+    21,
+    9,
+    25,
+    49
+   ],
+   [
+    21,
+    10,
+    25,
+    48
+   ]
+  ],
+  "walk_right": [
+   [
+    18,
+    11,
+    25,
+    47
+   ],
+   [
+    18,
+    10,
+    25,
+    48
+   ],
+   [
+    18,
+    9,
+    25,
+    49
+   ],
+   [
+    18,
+    10,
+    25,
+    48
+   ],
+   [
+    18,
+    11,
+    25,
+    47
+   ],
+   [
+    18,
+    10,
+    25,
+    48
+   ],
+   [
+    18,
+    9,
+    25,
+    49
+   ],
+   [
+    18,
+    10,
+    25,
+    48
+   ]
+  ],
+  "walk_up": [
+   [
+    18,
+    11,
+    28,
+    47
+   ],
+   [
+    18,
+    10,
+    28,
+    48
+   ],
+   [
+    18,
+    9,
+    28,
+    49
+   ],
+   [
+    18,
+    10,
+    28,
+    48
+   ],
+   [
+    18,
+    11,
+    28,
+    47
+   ],
+   [
+    18,
+    10,
+    28,
+    48
+   ],
+   [
+    18,
+    9,
+    28,
+    49
+   ],
+   [
+    18,
+    10,
+    28,
+    48
+   ]
+  ],
+  "run_down": [
+   [
+    17,
+    11,
+    30,
+    47
+   ],
+   [
+    17,
+    12,
+    30,
+    46
+   ],
+   [
+    17,
+    12,
+    30,
+    46
+   ],
+   [
+    17,
+    10,
+    30,
+    46
+   ],
+   [
+    17,
+    11,
+    30,
+    47
+   ],
+   [
+    17,
+    12,
+    30,
+    46
+   ],
+   [
+    17,
+    12,
+    30,
+    46
+   ],
+   [
+    17,
+    10,
+    30,
+    46
+   ]
+  ],
+  "run_left": [
+   [
+    19,
+    10,
+    26,
+    48
+   ],
+   [
+    19,
+    11,
+    27,
+    47
+   ],
+   [
+    19,
+    11,
+    27,
+    47
+   ],
+   [
+    19,
+    9,
+    26,
+    47
+   ],
+   [
+    19,
+    10,
+    26,
+    48
+   ],
+   [
+    19,
+    11,
+    27,
+    47
+   ],
+   [
+    19,
+    11,
+    27,
+    47
+   ],
+   [
+    19,
+    9,
+    26,
+    47
+   ]
+  ],
+  "run_right": [
+   [
+    19,
+    10,
+    26,
+    48
+   ],
+   [
+    18,
+    11,
+    27,
+    47
+   ],
+   [
+    18,
+    11,
+    27,
+    47
+   ],
+   [
+    19,
+    9,
+    26,
+    47
+   ],
+   [
+    19,
+    10,
+    26,
+    48
+   ],
+   [
+    18,
+    11,
+    27,
+    47
+   ],
+   [
+    18,
+    11,
+    27,
+    47
+   ],
+   [
+    19,
+    9,
+    26,
+    47
+   ]
+  ],
+  "run_up": [
+   [
+    18,
+    9,
+    28,
+    49
+   ],
+   [
+    18,
+    10,
+    28,
+    48
+   ],
+   [
+    18,
+    10,
+    28,
+    48
+   ],
+   [
+    18,
+    8,
+    28,
+    48
+   ],
+   [
+    18,
+    9,
+    28,
+    49
+   ],
+   [
+    18,
+    10,
+    28,
+    48
+   ],
+   [
+    18,
+    10,
+    28,
+    48
+   ],
+   [
+    18,
+    8,
+    28,
+    48
+   ]
+  ],
+  "melee_swing_down": [
+   [
+    17,
+    10,
+    30,
+    48
+   ],
+   [
+    16,
+    11,
+    31,
+    47
+   ],
+   [
+    16,
+    11,
+    31,
+    47
+   ],
+   [
+    17,
+    10,
+    30,
+    48
+   ],
+   [
+    17,
+    12,
+    30,
+    46
+   ],
+   [
+    17,
+    12,
+    30,
+    46
+   ],
+   [
+    17,
+    11,
+    31,
+    47
+   ],
+   [
+    17,
+    10,
+    30,
+    48
+   ]
+  ],
+  "melee_swing_left": [
+   [
+    21,
+    10,
+    25,
+    48
+   ],
+   [
+    22,
+    11,
+    25,
+    47
+   ],
+   [
+    22,
+    11,
+    26,
+    47
+   ],
+   [
+    21,
+    10,
+    25,
+    48
+   ],
+   [
+    18,
+    11,
+    26,
+    47
+   ],
+   [
+    19,
+    11,
+    25,
+    47
+   ],
+   [
+    20,
+    11,
+    25,
+    47
+   ],
+   [
+    21,
+    10,
+    25,
+    48
+   ]
+  ],
+  "melee_swing_right": [
+   [
+    18,
+    10,
+    25,
+    48
+   ],
+   [
+    17,
+    11,
+    25,
+    47
+   ],
+   [
+    16,
+    11,
+    26,
+    47
+   ],
+   [
+    18,
+    10,
+    25,
+    48
+   ],
+   [
+    20,
+    11,
+    26,
+    47
+   ],
+   [
+    20,
+    11,
+    25,
+    47
+   ],
+   [
+    19,
+    11,
+    25,
+    47
+   ],
+   [
+    18,
+    10,
+    25,
+    48
+   ]
+  ],
+  "melee_swing_up": [
+   [
+    18,
+    10,
+    28,
+    48
+   ],
+   [
+    18,
+    11,
+    30,
+    47
+   ],
+   [
+    18,
+    11,
+    30,
+    47
+   ],
+   [
+    18,
+    10,
+    28,
+    48
+   ],
+   [
+    18,
+    10,
+    28,
+    48
+   ],
+   [
+    18,
+    10,
+    28,
+    48
+   ],
+   [
+    16,
+    11,
+    30,
+    47
+   ],
+   [
+    18,
+    10,
+    28,
+    48
+   ]
+  ]
+ },
+ "attacks": {
+  "melee_swing_down": [
+   {
+    "frame": 0,
+    "active": false,
+    "duration_ms": 110
+   },
+   {
+    "frame": 1,
+    "active": false,
+    "duration_ms": 90
+   },
+   {
+    "frame": 2,
+    "active": false,
+    "duration_ms": 130
+   },
+   {
+    "frame": 3,
+    "active": false,
+    "duration_ms": 40
+   },
+   {
+    "frame": 4,
+    "active": true,
+    "duration_ms": 130,
+    "weapons": {
+     "bat": {
+      "polygon": [
+       [
+        36.8,
+        42.8
+       ],
+       [
+        39.0,
+        53.5
+       ],
+       [
+        31.1,
+        55.0
+       ],
+       [
+        29.0,
+        44.3
+       ]
+      ],
+      "rect": [
+       28,
+       42,
+       11,
+       14
+      ],
+      "reach": [
+       -9,
+       0,
+       18,
+       24
+      ]
+     },
+     "bat_nails": {
+      "polygon": [
+       [
+        38.8,
+        42.4
+       ],
+       [
+        40.9,
+        53.1
+       ],
+       [
+        29.2,
+        55.4
+       ],
+       [
+        27.0,
+        44.7
+       ]
+      ],
+      "rect": [
+       27,
+       42,
+       14,
+       14
+      ],
+      "reach": [
+       -9,
+       0,
+       18,
+       24
+      ]
+     },
+     "pipe": {
+      "polygon": [
+       [
+        35.9,
+        43.3
+       ],
+       [
+        38.2,
+        54.6
+       ],
+       [
+        32.3,
+        55.8
+       ],
+       [
+        30.0,
+        44.5
+       ]
+      ],
+      "rect": [
+       30,
+       43,
+       9,
+       13
+      ],
+      "reach": [
+       -9,
+       0,
+       18,
+       24
+      ]
+     },
+     "machete": {
+      "polygon": [
+       [
+        36.8,
+        42.4
+       ],
+       [
+        38.8,
+        52.5
+       ],
+       [
+        30.9,
+        54.0
+       ],
+       [
+        28.9,
+        44.0
+       ]
+      ],
+      "rect": [
+       28,
+       42,
+       11,
+       13
+      ],
+      "reach": [
+       -9,
+       0,
+       18,
+       25
+      ]
+     }
+    }
+   },
+   {
+    "frame": 5,
+    "active": false,
+    "duration_ms": 80
+   },
+   {
+    "frame": 6,
+    "active": false,
+    "duration_ms": 90
+   },
+   {
+    "frame": 7,
+    "active": false,
+    "duration_ms": 110
+   }
+  ],
+  "melee_swing_left": [
+   {
+    "frame": 0,
+    "active": false,
+    "duration_ms": 110
+   },
+   {
+    "frame": 1,
+    "active": false,
+    "duration_ms": 90
+   },
+   {
+    "frame": 2,
+    "active": false,
+    "duration_ms": 130
+   },
+   {
+    "frame": 3,
+    "active": false,
+    "duration_ms": 40
+   },
+   {
+    "frame": 4,
+    "active": true,
+    "duration_ms": 130,
+    "weapons": {
+     "bat": {
+      "polygon": [
+       [
+        19.6,
+        42.5
+       ],
+       [
+        1.5,
+        42.5
+       ],
+       [
+        1.5,
+        34.5
+       ],
+       [
+        19.6,
+        34.5
+       ]
+      ],
+      "rect": [
+       1,
+       34,
+       19,
+       9
+      ],
+      "reach": [
+       -27,
+       -7,
+       27,
+       14
+      ]
+     },
+     "bat_nails": {
+      "polygon": [
+       [
+        19.6,
+        44.5
+       ],
+       [
+        1.5,
+        44.5
+       ],
+       [
+        1.5,
+        33.5
+       ],
+       [
+        19.6,
+        33.5
+       ]
+      ],
+      "rect": [
+       1,
+       33,
+       19,
+       12
+      ],
+      "reach": [
+       -27,
+       -7,
+       27,
+       14
+      ]
+     },
+     "pipe": {
+      "polygon": [
+       [
+        19.2,
+        41.5
+       ],
+       [
+        0.5,
+        41.5
+       ],
+       [
+        0.5,
+        35.5
+       ],
+       [
+        19.2,
+        35.5
+       ]
+      ],
+      "rect": [
+       0,
+       35,
+       20,
+       7
+      ],
+      "reach": [
+       -27,
+       -7,
+       27,
+       14
+      ]
+     },
+     "machete": {
+      "polygon": [
+       [
+        19.6,
+        42.5
+       ],
+       [
+        1.5,
+        42.5
+       ],
+       [
+        1.5,
+        34.5
+       ],
+       [
+        19.6,
+        34.5
+       ]
+      ],
+      "rect": [
+       1,
+       34,
+       19,
+       9
+      ],
+      "reach": [
+       -28,
+       -7,
+       28,
+       14
+      ]
+     }
+    }
+   },
+   {
+    "frame": 5,
+    "active": false,
+    "duration_ms": 80
+   },
+   {
+    "frame": 6,
+    "active": false,
+    "duration_ms": 90
+   },
+   {
+    "frame": 7,
+    "active": false,
+    "duration_ms": 110
+   }
+  ],
+  "melee_swing_right": [
+   {
+    "frame": 0,
+    "active": false,
+    "duration_ms": 110
+   },
+   {
+    "frame": 1,
+    "active": false,
+    "duration_ms": 90
+   },
+   {
+    "frame": 2,
+    "active": false,
+    "duration_ms": 130
+   },
+   {
+    "frame": 3,
+    "active": false,
+    "duration_ms": 40
+   },
+   {
+    "frame": 4,
+    "active": true,
+    "duration_ms": 130,
+    "weapons": {
+     "bat": {
+      "polygon": [
+       [
+        44.5,
+        34.5
+       ],
+       [
+        62.5,
+        34.5
+       ],
+       [
+        62.5,
+        42.5
+       ],
+       [
+        44.5,
+        42.5
+       ]
+      ],
+      "rect": [
+       44,
+       34,
+       19,
+       9
+      ],
+      "reach": [
+       0,
+       -7,
+       27,
+       14
+      ]
+     },
+     "bat_nails": {
+      "polygon": [
+       [
+        44.5,
+        33.5
+       ],
+       [
+        62.5,
+        33.5
+       ],
+       [
+        62.5,
+        44.5
+       ],
+       [
+        44.5,
+        44.5
+       ]
+      ],
+      "rect": [
+       44,
+       33,
+       19,
+       12
+      ],
+      "reach": [
+       0,
+       -7,
+       27,
+       14
+      ]
+     },
+     "pipe": {
+      "polygon": [
+       [
+        44.8,
+        35.5
+       ],
+       [
+        63.5,
+        35.5
+       ],
+       [
+        63.5,
+        41.5
+       ],
+       [
+        44.8,
+        41.5
+       ]
+      ],
+      "rect": [
+       44,
+       35,
+       20,
+       7
+      ],
+      "reach": [
+       0,
+       -7,
+       27,
+       14
+      ]
+     },
+     "machete": {
+      "polygon": [
+       [
+        44.5,
+        34.5
+       ],
+       [
+        62.5,
+        34.5
+       ],
+       [
+        62.5,
+        42.5
+       ],
+       [
+        44.5,
+        42.5
+       ]
+      ],
+      "rect": [
+       44,
+       34,
+       19,
+       9
+      ],
+      "reach": [
+       0,
+       -7,
+       28,
+       14
+      ]
+     }
+    }
+   },
+   {
+    "frame": 5,
+    "active": false,
+    "duration_ms": 80
+   },
+   {
+    "frame": 6,
+    "active": false,
+    "duration_ms": 90
+   },
+   {
+    "frame": 7,
+    "active": false,
+    "duration_ms": 110
+   }
+  ],
+  "melee_swing_up": [
+   {
+    "frame": 0,
+    "active": false,
+    "duration_ms": 110
+   },
+   {
+    "frame": 1,
+    "active": false,
+    "duration_ms": 90
+   },
+   {
+    "frame": 2,
+    "active": false,
+    "duration_ms": 130
+   },
+   {
+    "frame": 3,
+    "active": false,
+    "duration_ms": 40
+   },
+   {
+    "frame": 4,
+    "active": true,
+    "duration_ms": 130,
+    "weapons": {
+     "bat": {
+      "polygon": [
+       [
+        26.4,
+        32.6
+       ],
+       [
+        16.4,
+        17.6
+       ],
+       [
+        23.0,
+        13.2
+       ],
+       [
+        33.1,
+        28.2
+       ]
+      ],
+      "rect": [
+       16,
+       13,
+       18,
+       20
+      ],
+      "reach": [
+       -9,
+       -24,
+       18,
+       24
+      ]
+     },
+     "bat_nails": {
+      "polygon": [
+       [
+        25.6,
+        33.2
+       ],
+       [
+        15.6,
+        18.2
+       ],
+       [
+        24.7,
+        12.0
+       ],
+       [
+        34.7,
+        27.1
+       ]
+      ],
+      "rect": [
+       15,
+       12,
+       20,
+       22
+      ],
+      "reach": [
+       -9,
+       -24,
+       18,
+       24
+      ]
+     },
+     "pipe": {
+      "polygon": [
+       [
+        27.1,
+        31.8
+       ],
+       [
+        16.7,
+        16.2
+       ],
+       [
+        21.7,
+        12.9
+       ],
+       [
+        32.0,
+        28.4
+       ]
+      ],
+      "rect": [
+       16,
+       12,
+       17,
+       20
+      ],
+      "reach": [
+       -9,
+       -24,
+       18,
+       24
+      ]
+     },
+     "machete": {
+      "polygon": [
+       [
+        26.4,
+        32.6
+       ],
+       [
+        16.4,
+        17.6
+       ],
+       [
+        23.0,
+        13.2
+       ],
+       [
+        33.1,
+        28.2
+       ]
+      ],
+      "rect": [
+       16,
+       13,
+       18,
+       20
+      ],
+      "reach": [
+       -9,
+       -25,
+       18,
+       25
+      ]
+     }
+    }
+   },
+   {
+    "frame": 5,
+    "active": false,
+    "duration_ms": 80
+   },
+   {
+    "frame": 6,
+    "active": false,
+    "duration_ms": 90
+   },
+   {
+    "frame": 7,
+    "active": false,
+    "duration_ms": 110
+   }
+  ]
+ },
+ "collision_recommended": {
+  "ellipse": {
+   "cx": 32,
+   "cy": 55.5,
+   "rx": 7,
+   "ry": 3
+  },
+  "rect": [
+   25,
+   53,
+   14,
+   6
+  ],
+  "note": "one constant footprint for physics/pathfinding regardless of facing (avoids jitter when turning); per-direction boxes above are the exact feet bounds"
+ },
+ "reach_note": "reach = ground-plane rect RELATIVE TO THE FEET PIVOT [dx, dy, w, h] (top-down world units = pixels). For top-down gameplay, test it against each target's ground box (its collision rect/ellipse, or a circle of radius ~8 around its feet). polygon/rect are the drawn weapon in sprite space; they match the pixels but are foreshortened in down/up views, so use them for debug or for sprite-space hit tests only.",
+ "attacks_note": "Weapon hitbox per melee row/frame. Only frames with active=true carry boxes (one per weapon, because lengths and widths differ). Polygon = oriented box over the striking 65 % of the weapon (handle excluded); rect = its axis-aligned bounds. Enable it for that frame's duration_ms and let each target be hit once per swing."
+}

@@ -1,0 +1,835 @@
+{
+ "note": "Each *_rot.png is a grid of 64x64 tiles: column = angle step (k*360/steps deg, 0 = pointing right, clockwise on screen because y points down), row = scale variant. The grip pivot is pixel (32,32) of every tile. Rows 0-2 = scales 1.0/0.75/0.5; rows 3-5 = the same scales mirrored across the weapon's long axis (use them when a frame has flip_v=true, so a blade's sharp edge leads the swing; equivalent to sprite scale.y=-1 before rotating). Standalone <name>.png is the 0 deg / scale 1 sprite; its pivot is given in pixels.",
+ "steps": 32,
+ "scales": [
+  1.0,
+  0.75,
+  0.5
+ ],
+ "flip_rows": true,
+ "tile": 64,
+ "tile_pivot": [
+  32,
+  32
+ ],
+ "weapons": {
+  "bat": {
+   "sprite": "weapons/bat.png",
+   "pivot": [
+    4,
+    3
+   ],
+   "size": [
+    27,
+    7
+   ],
+   "length_px": 21,
+   "rotations": "weapons/bat_rot.png"
+  },
+  "bat_nails": {
+   "sprite": "weapons/bat_nails.png",
+   "pivot": [
+    4,
+    5
+   ],
+   "size": [
+    27,
+    10
+   ],
+   "length_px": 21,
+   "rotations": "weapons/bat_nails_rot.png"
+  },
+  "pipe": {
+   "sprite": "weapons/pipe.png",
+   "pivot": [
+    4,
+    2
+   ],
+   "size": [
+    28,
+    5
+   ],
+   "length_px": 21,
+   "rotations": "weapons/pipe_rot.png"
+  },
+  "machete": {
+   "sprite": "weapons/machete.png",
+   "pivot": [
+    4,
+    3
+   ],
+   "size": [
+    27,
+    7
+   ],
+   "length_px": 22,
+   "rotations": "weapons/machete_rot.png"
+  }
+ },
+ "row_index": {
+  "idle_down": 0,
+  "idle_left": 1,
+  "idle_right": 2,
+  "idle_up": 3,
+  "walk_down": 4,
+  "walk_left": 5,
+  "walk_right": 6,
+  "walk_up": 7,
+  "run_down": 8,
+  "run_left": 9,
+  "run_right": 10,
+  "run_up": 11,
+  "melee_swing_down": 12,
+  "melee_swing_left": 13,
+  "melee_swing_right": 14,
+  "melee_swing_up": 15
+ },
+ "frames": {
+  "melee_swing_down": [
+   {
+    "grip": [
+     30.5,
+     40.0
+    ],
+    "off_hand": [
+     28.1,
+     38.3
+    ],
+    "angle": 215,
+    "scale": 0.9,
+    "order": "front",
+    "hit": false,
+    "smear": false,
+    "duration_ms": 110,
+    "flip_v": true,
+    "prev_grip": [
+     31.0,
+     40.0
+    ],
+    "prev_scale": 0.85,
+    "prev_angle": 236
+   },
+   {
+    "grip": [
+     25.5,
+     38.0
+    ],
+    "off_hand": [
+     23.0,
+     37.6
+    ],
+    "angle": 190,
+    "scale": 0.8,
+    "order": "behind",
+    "hit": false,
+    "smear": false,
+    "duration_ms": 90,
+    "flip_v": true,
+    "prev_grip": [
+     30.5,
+     40.0
+    ],
+    "prev_scale": 0.9,
+    "prev_angle": 215
+   },
+   {
+    "grip": [
+     24.0,
+     37.0
+    ],
+    "off_hand": [
+     20.9,
+     36.1
+    ],
+    "angle": 196,
+    "scale": 1.0,
+    "order": "behind",
+    "hit": false,
+    "smear": false,
+    "duration_ms": 130,
+    "flip_v": true,
+    "prev_grip": [
+     25.5,
+     38.0
+    ],
+    "prev_scale": 0.8,
+    "prev_angle": 190
+   },
+   {
+    "grip": [
+     28.0,
+     40.0
+    ],
+    "off_hand": [
+     27.0,
+     41.6
+    ],
+    "angle": 122,
+    "scale": 0.6,
+    "order": "front",
+    "hit": false,
+    "smear": true,
+    "duration_ms": 40,
+    "flip_v": true,
+    "prev_grip": [
+     24.0,
+     37.0
+    ],
+    "prev_scale": 1.0,
+    "prev_angle": 196
+   },
+   {
+    "grip": [
+     32.0,
+     41.0
+    ],
+    "off_hand": [
+     32.5,
+     42.9
+    ],
+    "angle": 75,
+    "scale": 0.6,
+    "order": "front",
+    "hit": true,
+    "smear": true,
+    "duration_ms": 130,
+    "flip_v": true,
+    "prev_grip": [
+     28.0,
+     40.0
+    ],
+    "prev_scale": 0.6,
+    "prev_angle": 122
+   },
+   {
+    "grip": [
+     37.0,
+     40.0
+    ],
+    "off_hand": [
+     39.7,
+     41.0
+    ],
+    "angle": 20,
+    "scale": 0.9,
+    "order": "front",
+    "hit": false,
+    "smear": false,
+    "duration_ms": 80,
+    "flip_v": true,
+    "prev_grip": [
+     32.0,
+     41.0
+    ],
+    "prev_scale": 0.6,
+    "prev_angle": 75
+   },
+   {
+    "grip": [
+     39.0,
+     38.0
+    ],
+    "off_hand": [
+     41.4,
+     37.1
+    ],
+    "angle": 340,
+    "scale": 0.8,
+    "order": "behind",
+    "hit": false,
+    "smear": false,
+    "duration_ms": 90,
+    "flip_v": true,
+    "prev_grip": [
+     37.0,
+     40.0
+    ],
+    "prev_scale": 0.9,
+    "prev_angle": 20
+   },
+   {
+    "grip": [
+     31.0,
+     40.0
+    ],
+    "off_hand": [
+     29.5,
+     37.7
+    ],
+    "angle": 236,
+    "scale": 0.85,
+    "order": "front",
+    "hit": false,
+    "smear": false,
+    "duration_ms": 110,
+    "flip_v": true,
+    "prev_grip": [
+     39.0,
+     38.0
+    ],
+    "prev_scale": 0.8,
+    "prev_angle": 340
+   }
+  ],
+  "melee_swing_left": [
+   {
+    "grip": [
+     29.0,
+     39.0
+    ],
+    "off_hand": [
+     26.5,
+     36.9
+    ],
+    "angle": 220,
+    "scale": 1.0,
+    "order": "front",
+    "hit": false,
+    "smear": false,
+    "duration_ms": 110,
+    "flip_v": false,
+    "prev_grip": [
+     29.5,
+     39.0
+    ],
+    "prev_scale": 0.9,
+    "prev_angle": 232
+   },
+   {
+    "grip": [
+     33.0,
+     38.5
+    ],
+    "off_hand": [
+     34.1,
+     36.6
+    ],
+    "angle": 300,
+    "scale": 0.7,
+    "order": "behind",
+    "hit": false,
+    "smear": false,
+    "duration_ms": 90,
+    "flip_v": false,
+    "prev_grip": [
+     29.0,
+     39.0
+    ],
+    "prev_scale": 1.0,
+    "prev_angle": 220
+   },
+   {
+    "grip": [
+     36.0,
+     37.5
+    ],
+    "off_hand": [
+     39.2,
+     37.1
+    ],
+    "angle": 352,
+    "scale": 1.0,
+    "order": "behind",
+    "hit": false,
+    "smear": false,
+    "duration_ms": 130,
+    "flip_v": false,
+    "prev_grip": [
+     33.0,
+     38.5
+    ],
+    "prev_scale": 0.7,
+    "prev_angle": 300
+   },
+   {
+    "grip": [
+     30.0,
+     39.0
+    ],
+    "off_hand": [
+     29.7,
+     40.7
+    ],
+    "angle": 100,
+    "scale": 0.55,
+    "order": "front",
+    "hit": false,
+    "smear": true,
+    "duration_ms": 40,
+    "flip_v": false,
+    "prev_grip": [
+     36.0,
+     37.5
+    ],
+    "prev_scale": 1.0,
+    "prev_angle": 352
+   },
+   {
+    "grip": [
+     24.5,
+     38.0
+    ],
+    "off_hand": [
+     21.3,
+     38.0
+    ],
+    "angle": 180,
+    "scale": 1.0,
+    "order": "front",
+    "hit": true,
+    "smear": true,
+    "duration_ms": 130,
+    "flip_v": false,
+    "prev_grip": [
+     30.0,
+     39.0
+    ],
+    "prev_scale": 0.55,
+    "prev_angle": 100
+   },
+   {
+    "grip": [
+     25.5,
+     37.5
+    ],
+    "off_hand": [
+     24.0,
+     36.3
+    ],
+    "angle": 218,
+    "scale": 0.6,
+    "order": "behind",
+    "hit": false,
+    "smear": false,
+    "duration_ms": 80,
+    "flip_v": false,
+    "prev_grip": [
+     24.5,
+     38.0
+    ],
+    "prev_scale": 1.0,
+    "prev_angle": 180
+   },
+   {
+    "grip": [
+     28.5,
+     37.0
+    ],
+    "off_hand": [
+     28.2,
+     35.1
+    ],
+    "angle": 262,
+    "scale": 0.6,
+    "order": "behind",
+    "hit": false,
+    "smear": false,
+    "duration_ms": 90,
+    "flip_v": false,
+    "prev_grip": [
+     25.5,
+     37.5
+    ],
+    "prev_scale": 0.6,
+    "prev_angle": 218
+   },
+   {
+    "grip": [
+     29.5,
+     39.0
+    ],
+    "off_hand": [
+     27.7,
+     36.7
+    ],
+    "angle": 232,
+    "scale": 0.9,
+    "order": "front",
+    "hit": false,
+    "smear": false,
+    "duration_ms": 110,
+    "flip_v": false,
+    "prev_grip": [
+     28.5,
+     37.0
+    ],
+    "prev_scale": 0.6,
+    "prev_angle": 262
+   }
+  ],
+  "melee_swing_right": [
+   {
+    "grip": [
+     35.0,
+     39.0
+    ],
+    "off_hand": [
+     37.5,
+     36.9
+    ],
+    "angle": 320,
+    "scale": 1.0,
+    "order": "front",
+    "hit": false,
+    "smear": false,
+    "duration_ms": 110,
+    "flip_v": true,
+    "prev_grip": [
+     34.5,
+     39.0
+    ],
+    "prev_scale": 0.9,
+    "prev_angle": 308
+   },
+   {
+    "grip": [
+     31.0,
+     38.5
+    ],
+    "off_hand": [
+     29.9,
+     36.6
+    ],
+    "angle": 240,
+    "scale": 0.7,
+    "order": "behind",
+    "hit": false,
+    "smear": false,
+    "duration_ms": 90,
+    "flip_v": true,
+    "prev_grip": [
+     35.0,
+     39.0
+    ],
+    "prev_scale": 1.0,
+    "prev_angle": 320
+   },
+   {
+    "grip": [
+     28.0,
+     37.5
+    ],
+    "off_hand": [
+     24.8,
+     37.1
+    ],
+    "angle": 188,
+    "scale": 1.0,
+    "order": "behind",
+    "hit": false,
+    "smear": false,
+    "duration_ms": 130,
+    "flip_v": true,
+    "prev_grip": [
+     31.0,
+     38.5
+    ],
+    "prev_scale": 0.7,
+    "prev_angle": 240
+   },
+   {
+    "grip": [
+     34.0,
+     39.0
+    ],
+    "off_hand": [
+     34.3,
+     40.7
+    ],
+    "angle": 80,
+    "scale": 0.55,
+    "order": "front",
+    "hit": false,
+    "smear": true,
+    "duration_ms": 40,
+    "flip_v": true,
+    "prev_grip": [
+     28.0,
+     37.5
+    ],
+    "prev_scale": 1.0,
+    "prev_angle": 188
+   },
+   {
+    "grip": [
+     39.5,
+     38.0
+    ],
+    "off_hand": [
+     42.7,
+     38.0
+    ],
+    "angle": 0,
+    "scale": 1.0,
+    "order": "front",
+    "hit": true,
+    "smear": true,
+    "duration_ms": 130,
+    "flip_v": true,
+    "prev_grip": [
+     34.0,
+     39.0
+    ],
+    "prev_scale": 0.55,
+    "prev_angle": 80
+   },
+   {
+    "grip": [
+     38.5,
+     37.5
+    ],
+    "off_hand": [
+     40.0,
+     36.3
+    ],
+    "angle": 322,
+    "scale": 0.6,
+    "order": "behind",
+    "hit": false,
+    "smear": false,
+    "duration_ms": 80,
+    "flip_v": true,
+    "prev_grip": [
+     39.5,
+     38.0
+    ],
+    "prev_scale": 1.0,
+    "prev_angle": 0
+   },
+   {
+    "grip": [
+     35.5,
+     37.0
+    ],
+    "off_hand": [
+     35.8,
+     35.1
+    ],
+    "angle": 278,
+    "scale": 0.6,
+    "order": "behind",
+    "hit": false,
+    "smear": false,
+    "duration_ms": 90,
+    "flip_v": true,
+    "prev_grip": [
+     38.5,
+     37.5
+    ],
+    "prev_scale": 0.6,
+    "prev_angle": 322
+   },
+   {
+    "grip": [
+     34.5,
+     39.0
+    ],
+    "off_hand": [
+     36.3,
+     36.7
+    ],
+    "angle": 308,
+    "scale": 0.9,
+    "order": "front",
+    "hit": false,
+    "smear": false,
+    "duration_ms": 110,
+    "flip_v": true,
+    "prev_grip": [
+     35.5,
+     37.0
+    ],
+    "prev_scale": 0.6,
+    "prev_angle": 278
+   }
+  ],
+  "melee_swing_up": [
+   {
+    "grip": [
+     33.0,
+     40.0
+    ],
+    "off_hand": [
+     34.4,
+     37.5
+    ],
+    "angle": 300,
+    "scale": 0.9,
+    "order": "behind",
+    "hit": false,
+    "smear": false,
+    "duration_ms": 110,
+    "flip_v": true,
+    "prev_grip": [
+     30.0,
+     40.0
+    ],
+    "prev_scale": 0.8,
+    "prev_angle": 250
+   },
+   {
+    "grip": [
+     38.5,
+     38.0
+    ],
+    "off_hand": [
+     40.9,
+     37.1
+    ],
+    "angle": 340,
+    "scale": 0.8,
+    "order": "front",
+    "hit": false,
+    "smear": false,
+    "duration_ms": 90,
+    "flip_v": true,
+    "prev_grip": [
+     33.0,
+     40.0
+    ],
+    "prev_scale": 0.9,
+    "prev_angle": 300
+   },
+   {
+    "grip": [
+     40.0,
+     37.0
+    ],
+    "off_hand": [
+     43.2,
+     37.6
+    ],
+    "angle": 10,
+    "scale": 1.0,
+    "order": "front",
+    "hit": false,
+    "smear": false,
+    "duration_ms": 130,
+    "flip_v": true,
+    "prev_grip": [
+     38.5,
+     38.0
+    ],
+    "prev_scale": 0.8,
+    "prev_angle": 340
+   },
+   {
+    "grip": [
+     36.0,
+     36.0
+    ],
+    "off_hand": [
+     37.0,
+     34.3
+    ],
+    "angle": 300,
+    "scale": 0.6,
+    "order": "behind",
+    "hit": false,
+    "smear": true,
+    "duration_ms": 40,
+    "flip_v": true,
+    "prev_grip": [
+     40.0,
+     37.0
+    ],
+    "prev_scale": 1.0,
+    "prev_angle": 10
+   },
+   {
+    "grip": [
+     32.0,
+     34.0
+    ],
+    "off_hand": [
+     30.4,
+     31.2
+    ],
+    "angle": 240,
+    "scale": 1.0,
+    "order": "behind",
+    "hit": true,
+    "smear": true,
+    "duration_ms": 130,
+    "flip_v": true,
+    "prev_grip": [
+     36.0,
+     36.0
+    ],
+    "prev_scale": 0.6,
+    "prev_angle": 300
+   },
+   {
+    "grip": [
+     27.0,
+     36.0
+    ],
+    "off_hand": [
+     24.3,
+     35.0
+    ],
+    "angle": 200,
+    "scale": 0.9,
+    "order": "behind",
+    "hit": false,
+    "smear": false,
+    "duration_ms": 80,
+    "flip_v": true,
+    "prev_grip": [
+     32.0,
+     34.0
+    ],
+    "prev_scale": 1.0,
+    "prev_angle": 240
+   },
+   {
+    "grip": [
+     25.0,
+     38.0
+    ],
+    "off_hand": [
+     22.5,
+     38.4
+    ],
+    "angle": 170,
+    "scale": 0.8,
+    "order": "front",
+    "hit": false,
+    "smear": false,
+    "duration_ms": 90,
+    "flip_v": true,
+    "prev_grip": [
+     27.0,
+     36.0
+    ],
+    "prev_scale": 0.9,
+    "prev_angle": 200
+   },
+   {
+    "grip": [
+     30.0,
+     40.0
+    ],
+    "off_hand": [
+     29.1,
+     37.6
+    ],
+    "angle": 250,
+    "scale": 0.8,
+    "order": "behind",
+    "hit": false,
+    "smear": false,
+    "duration_ms": 110,
+    "flip_v": true,
+    "prev_grip": [
+     25.0,
+     38.0
+    ],
+    "prev_scale": 0.8,
+    "prev_angle": 170
+   }
+  ]
+ },
+ "hands_overlay": "hands_overlay_sheet.png",
+ "fx": "fx/smear_sheet.png"
+}
