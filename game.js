@@ -676,6 +676,7 @@
   }
   function drawWeapon(w, ox, oy) {
     const W = A.p.weapons, img = A.p.rot[player.weapon];
+    if (!img) return; // ranged weapons (pistol) have no rotation sheet
     const tile = W.tile || 64, piv = W.tile_pivot || [32, 32], steps = W.steps || 32;
     const col = ((Math.round(w.angle / (360 / steps)) % steps) + steps) % steps;
     let si = 0, best = 1e9;
