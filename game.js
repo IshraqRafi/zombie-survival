@@ -19,8 +19,16 @@
     bat_nails: { dmg: 50, kb: 140, type: "melee" },
     pipe: { dmg: 40, kb: 170, type: "melee" },
     machete: { dmg: 60, kb: 110, type: "melee" },
-    pistol: { dmg: 28, kb: 60, type: "ranged", cooldown: 0.28, speed: 680, range: 320 },
+    pistol:  { dmg: 26, kb: 50, type: "ranged", cooldown: 0.24, speed: 700, range: 300, pellets: 1 },
+    rifle:   { dmg: 42, kb: 80, type: "ranged", cooldown: 0.36, speed: 820, range: 440, pellets: 1 },
+    shotgun: { dmg: 22, kb: 70, type: "ranged", cooldown: 0.62, speed: 520, range: 190, pellets: 4, spread: 0.22 },
     _default: { dmg: 40, kb: 140, type: "melee" },
+  };
+  // Source rects in assets/weapons/weapons.png (32px tiles). Sprites point right.
+  const RANGED_SPRITES = {
+    pistol:  { x: 4, y: 1 },
+    rifle:   { x: 6, y: 0 },
+    shotgun: { x: 8, y: 0 },
   };
   const PICKUP_HEAL = 35;
   const VARIANT_STATS = {
@@ -47,6 +55,7 @@
 
   const keys = new Set();
   let A = null; // loaded assets + parsed data
+  let gunSheet = null;
   let scale = 4, viewW = 320, viewH = 180, camX = 0, camY = 0, last = 0;
   let ready = false, debug = false, ground = null, time = 0;
   let mouse = { x: 0, y: 0 };
@@ -193,9 +202,11 @@
     zVariants.forEach((v, i) => { zsheets[v] = { nofx: zimgs[2 + i * 2], full: zimgs[3 + i * 2] }; });
 
     const pRows = buildRows(pl);
-    // inject ranged weapon using pipe rotation sheet as a stand-in gun
-    if (!weaponNames.includes("pistol")) weaponNames.push("pistol");
-    if (rot.pipe && !rot.pistol) rot.pistol = rot.pipe;
+    // test ranged weapons from assets/weapons/weapons.png
+    gunSheet = await loadImage("assets/weapons/weapons.png");
+    for (const n of Object.keys(RANGED_SPRITES)) {
+      if (!weaponNames.includes(n)) weaponNames.push(n);
+    }
     if (!pRows[ATTACK + "_down"]) throw new Error("player layout.json has no " + ATTACK + " rows");
     const pAnims = {};
     for (const anim of new Set(pl.rows.map((r) => r.anim))) {
@@ -420,24 +431,29 @@
     if (ws.type === "ranged") {
       if (player.anim === ATTACK || (player.shootCd || 0) > 0 || (player.ammo || 0) <= 0) return;
       if (faceX !== undefined) player.dir = dirFromVec(faceX, faceY, player.dir);
-      // fire from weapon tip (roughly hand position)
       const angle = Math.atan2(faceY || 0, faceX || 1);
-      const tipDist = 18;
+      const tipDist = 20;
       const sx = player.x + Math.cos(angle) * tipDist;
-      const sy = player.y - 10 + Math.sin(angle) * tipDist;
+      const sy = player.y - 8 + Math.sin(angle) * tipDist;
       const speed = ws.speed || 400;
-      projectiles.push({
-        id: nextProjectileId++,
-        x: sx, y: sy,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        dmg: ws.dmg, kb: ws.kb, range: ws.range || 250, dist: 0,
-        life: 0.48,
-        trail: []
-      });
+      const pellets = ws.pellets || 1;
+      const spread = ws.spread || 0;
+      for (let i = 0; i < pellets; i++) {
+        const off = pellets > 1 ? (i - (pellets - 1) / 2) * spread : 0;
+        const a = angle + off;
+        projectiles.push({
+          id: nextProjectileId++,
+          x: sx, y: sy,
+          vx: Math.cos(a) * speed,
+          vy: Math.sin(a) * speed,
+          dmg: ws.dmg, kb: ws.kb, range: ws.range || 250, dist: 0,
+          life: 0.48,
+          trail: []
+        });
+      }
       player.shootCd = ws.cooldown || 0.3;
       player.ammo = Math.max(0, (player.ammo || 0) - 1);
-      play("handgun", 0.8, 0.95 + Math.random() * 0.1);
+      play("handgun", player.weapon === "shotgun" ? 0.9 : 0.75, player.weapon === "rifle" ? 0.85 : 1.0);
       log.push({ t: time, ev: "shoot", weapon: player.weapon });
       return;
     }
@@ -447,7 +463,7 @@
     play(player.weapon === "machete" ? "sword_swing" : "bat_swing", 0.7, 0.9 + Math.random() * 0.2);
   }
   function setWeapon(name) {
-    if (name !== "pistol" && !A.p.weapons.weapons[name]) return;
+    if (!A.p.weapons.weapons[name] && !RANGED_SPRITES[name]) return;
     player.weapon = name;
     weaponLabel.textContent = name.replace("_", " ");
     log.push({ t: time, ev: "weapon", name });
@@ -873,10 +889,13 @@
 
     const att = p.anim === ATTACK ? P.attack[p.dir][p.frame] : null;
     const w = att ? att.w : carryPose(p);
+    const ranged = !!RANGED_SPRITES[p.weapon];
     if (att && att.w.smear) ctx.drawImage(P.smear, sx, sy, F, F, ox, oy, F, F); // always under body
-    if (w && w.order === "behind") drawWeapon(w, ox, oy);
+    if (w && w.order === "behind" && !ranged) drawWeapon(w, ox, oy);
     ctx.drawImage(P.sheet, sx, sy, F, F, ox, oy, F, F);
-    if (w && w.order !== "behind") {
+    if (ranged) {
+      drawRangedWeapon(ox, oy);
+    } else if (w && w.order !== "behind") {
       drawWeapon(w, ox, oy);
       if (att) ctx.drawImage(P.hands, sx, sy, F, F, ox, oy, F, F); // fingers over handle
     }
@@ -893,9 +912,24 @@
     if (!hand) return null;
     return { grip: hand, angle: pick[1], scale: 0.75, order: pick[2], flip_v: p.dir === "left" };
   }
+  function drawRangedWeapon(ox, oy) {
+    const spr = RANGED_SPRITES[player.weapon];
+    const sheet = gunSheet;
+    if (!spr || !sheet) return;
+    // facing angle (sprite points right)
+    const ang = { right: 0, down: Math.PI / 2, left: Math.PI, up: -Math.PI / 2 }[player.dir] || 0;
+    const gripX = ox + 32, gripY = oy + 36;
+    ctx.save();
+    ctx.translate(gripX, gripY);
+    ctx.rotate(ang);
+    // draw the 32px tile, grip near left-center so barrel points forward
+    ctx.drawImage(sheet, spr.x * 32, spr.y * 32, 32, 32, -6, -16, 32, 32);
+    ctx.restore();
+  }
   function drawWeapon(w, ox, oy) {
+    if (RANGED_SPRITES[player.weapon]) { drawRangedWeapon(ox, oy); return; }
     const W = A.p.weapons, img = A.p.rot[player.weapon];
-    if (!img) return; // ranged weapons (pistol) have no rotation sheet
+    if (!img) return;
     const tile = W.tile || 64, piv = W.tile_pivot || [32, 32], steps = W.steps || 32;
     const col = ((Math.round(w.angle / (360 / steps)) % steps) + steps) % steps;
     let si = 0, best = 1e9;
@@ -1166,7 +1200,7 @@
     hpFill.style.width = (player.hp / PLAYER_HP) * 100 + "%";
     stamFill.style.width = (player.stamina / MAX_STAMINA) * 100 + "%";
     const survived = Math.floor(time);
-    const ammoTxt = player.weapon === "pistol" ? ` · Ammo ${Math.floor(player.ammo || 0)}` : "";
+    const ammoTxt = (WEAPON_STATS[player.weapon] || {}).type === "ranged" ? ` · Ammo ${Math.floor(player.ammo || 0)}` : "";
     statsLabel.textContent = `Kills: ${stats.kills} · Time: ${survived}s · Wave ${stats.wave}${ammoTxt}`;
     camX = clamp(player.x - viewW / 2, 0, Math.max(0, WORLD_W - viewW));
     camY = clamp(player.y - 20 - viewH / 2, 0, Math.max(0, WORLD_H - viewH));
