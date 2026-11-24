@@ -313,12 +313,12 @@
   let footLoop = null, rainLoop = null;
   function loadSfx() {
     const map = {
-      bat_swing: "assets/sfx/bat_swing.mp3",
-      sword_swing: "assets/sfx/sword_swing.mp3",
-      handgun: "assets/sfx/handgun.mp3",
-      hit: "assets/sfx/hit.mp3",
-      hit2: "assets/sfx/hit2.mp3",
-      hit3: "assets/sfx/hit3.mp3",
+      bat_swing: "assets/sfx/bat_swing.wav",
+      sword_swing: "assets/sfx/sword_swing.wav",
+      handgun: "assets/sfx/handgun.wav",
+      hit: "assets/sfx/hit.wav",
+      hit2: "assets/sfx/hit2.wav",
+      hit3: "assets/sfx/hit3.wav",
       walking: "assets/sfx/walking.mp3",
       rain: "assets/sfx/rain.mp3",
       zombie_groan: "assets/sfx/zombie_groan.mp3",
