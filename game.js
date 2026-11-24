@@ -336,12 +336,45 @@
     rainLoop.volume = 0.18;
     rainLoop.play().catch(() => {});
   }
+  let actx = null;
+  function ensureAudioCtx() {
+    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === "suspended") actx.resume().catch(() => {});
+    return actx;
+  }
   function play(name, vol = 1, rate = 1) {
     const a = SFX[name];
     if (!a) return;
     const c = a.cloneNode();
     c.volume = Math.min(1, (a.volume || 0.6) * vol);
     c.playbackRate = rate;
+    c.play().catch(() => {});
+    return c;
+  }
+  // Distance-based volume + left/right pan. Far = quiet, close = loud.
+  function playSpatial(name, x, y, vol = 1, rate = 1) {
+    const a = SFX[name];
+    if (!a) return;
+    const dx = x - player.x, dy = y - player.y;
+    const d = Math.hypot(dx, dy);
+    const maxDist = 460;
+    if (d >= maxDist) return;
+    const atten = Math.pow(1 - d / maxDist, 1.55); // steeper falloff
+    if (atten < 0.04) return;
+    const c = a.cloneNode();
+    c.volume = Math.min(1, (a.volume || 0.6) * vol * atten);
+    c.playbackRate = rate;
+    // stereo pan based on horizontal offset (only if audio context is already running)
+    try {
+      const ctx = ensureAudioCtx();
+      if (ctx.state === "running") {
+        const src = ctx.createMediaElementSource(c);
+        const pan = ctx.createStereoPanner();
+        pan.pan.value = Math.max(-1, Math.min(1, dx / 200));
+        src.connect(pan);
+        pan.connect(ctx.destination);
+      }
+    } catch (e) { /* volume-only fallback */ }
     c.play().catch(() => {});
     return c;
   }
@@ -494,7 +527,7 @@
               const ws = WEAPON_STATS[p.weapon] || WEAPON_STATS._default;
               z.takeHit(ws.dmg, ws.kb, p.x, p.y);
               stats.playerHits++;
-              playHit(0.75);
+              playSpatial(["hit","hit2","hit3"][(Math.random()*3)|0], z.x, z.y, 0.8, 0.9 + Math.random() * 0.2);
               spawnBlood(z.x, z.y - 10, 4);
               log.push({ t: time, ev: "playerHit", zombie: z.id, weapon: p.weapon, frame: p.frame });
             }
@@ -515,7 +548,7 @@
         if (rectsOverlap([pr.x - 3, pr.y - 3, 6, 6], bodyRect(z))) {
           z.takeHit(pr.dmg, pr.kb, pr.x, pr.y);
           stats.playerHits++;
-          playHit(0.6);
+          playSpatial(["hit","hit2","hit3"][(Math.random()*3)|0], z.x, z.y, 0.65, 1.0 + Math.random() * 0.15);
           spawnBlood(z.x, z.y - 8, 3);
           pr.life = 0;
           log.push({ t: time, ev: "bulletHit", zombie: z.id });
@@ -601,7 +634,7 @@
       this.dir = dirFromVec(-dx, -dy, this.dir); // face the attacker
       this.lastSeen = { x: player.x, y: player.y };
       if (this.hp <= 0) {
-        this.setState("death"); this.setAnim("death"); stats.kills++; playHit(0.5);
+        this.setState("death"); this.setAnim("death"); stats.kills++; playSpatial(["hit","hit2","hit3"][(Math.random()*3)|0], this.x, this.y, 0.55, 0.85 + Math.random() * 0.2);
         if (Math.random() < this.dropChance && pickups.length < 5) {
           pickups.push({ x: this.x, y: this.y, type: "health", t: 0 });
         }
@@ -657,7 +690,7 @@
         this.groanT -= dt;
         if (this.groanT <= 0) {
           this.groanT = rand(5, 11);
-          play(Math.random() < 0.5 ? "zombie_groan" : "zombie_groan2", 0.22, 0.8 + Math.random() * 0.4);
+          playSpatial(Math.random() < 0.5 ? "zombie_groan" : "zombie_groan2", this.x, this.y, 0.45, 0.8 + Math.random() * 0.4);
         }
       }
       if (this.noticeMark > 0) this.noticeMark = Math.max(0, this.noticeMark - dt);
@@ -674,7 +707,7 @@
           if (sees) {
             this.setState("sense"); this.setAnim("sense");
             this.noticeMark = 1.4;
-            play("zombie_scream", 0.65, 0.92 + Math.random() * 0.16);
+            playSpatial("zombie_scream", this.x, this.y, 0.85, 0.92 + Math.random() * 0.16);
             break;
           }
           if (this.pause > 0) {
@@ -1028,6 +1061,7 @@
   // ---------- input ----------
   const PREVENT = ["KeyW", "KeyA", "KeyS", "KeyD", "ShiftLeft", "ShiftRight", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "F1", "Space"];
   window.addEventListener("keydown", (e) => {
+    ensureAudioCtx();
     if (PREVENT.includes(e.code)) e.preventDefault();
     keys.add(e.code);
     if (!ready || e.repeat) return;
@@ -1043,6 +1077,7 @@
   window.addEventListener("resize", resize);
   canvas.addEventListener("mousemove", (e) => { mouse.x = e.clientX; mouse.y = e.clientY; });
   canvas.addEventListener("mousedown", (e) => {
+    ensureAudioCtx();
     if (!ready || e.button !== 0) return;
     const wx = e.clientX / scale + camX, wy = e.clientY / scale + camY;
     startAttack(wx - player.x, wy - (player.y - 20));
