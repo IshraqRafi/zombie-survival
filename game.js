@@ -1194,7 +1194,11 @@
     startMenu.classList.remove("show");
     pauseMenu.classList.remove("show");
     settingsPanel.classList.remove("show");
-    if (el) el.classList.add("show");
+    if (el) {
+      el.classList.add("show");
+      const b = el.querySelector("button.primary") || el.querySelector("button");
+      if (b) setTimeout(() => b.focus(), 30);
+    }
   }
   function hideOverlays() {
     startMenu.classList.remove("show");
@@ -1234,9 +1238,11 @@
     A.p.weaponNames.forEach((name, i) => {
       const icon = makeWeaponIcon(name);
       weaponIcons[name] = icon;
-      const slot = document.createElement("div");
+      const slot = document.createElement("button");
+      slot.type = "button";
       slot.className = "slot";
       slot.dataset.weapon = name;
+      slot.setAttribute("aria-label", name.replace(/_/g, " "));
       const key = document.createElement("span");
       key.className = "key";
       key.textContent = String(i + 1);
@@ -1277,10 +1283,14 @@
   function updateBars() {
     const hp = Math.max(0, player.hp || 0);
     const st = Math.max(0, player.stamina || 0);
-    hpFill.style.width = (hp / PLAYER_HP) * 100 + "%";
-    stamFill.style.width = (st / MAX_STAMINA) * 100 + "%";
+    const hpPct = (hp / PLAYER_HP) * 100;
+    const stPct = (st / MAX_STAMINA) * 100;
+    hpFill.style.width = hpPct + "%";
+    stamFill.style.width = stPct + "%";
     hpVal.textContent = String(Math.ceil(hp));
     stamVal.textContent = String(Math.ceil(st));
+    hpFill.parentElement.setAttribute("aria-valuenow", String(Math.ceil(hp)));
+    stamFill.parentElement.setAttribute("aria-valuenow", String(Math.ceil(st)));
     const survived = Math.floor(time);
     statsLabel.textContent = `Kills ${stats.kills}  ·  ${survived}s  ·  Wave ${stats.wave}`;
     refreshWeaponUI();
@@ -1296,6 +1306,14 @@
   }
   function beginPause() {
     if (uiState !== "playing") return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) {
+      uiState = "paused";
+      showOverlay(pauseMenu);
+      const b = document.getElementById("btn-resume");
+      if (b) b.focus();
+      return;
+    }
     uiState = "pausing";
     shockT = 0;
   }
