@@ -19,7 +19,7 @@
     bat_nails: { dmg: 50, kb: 140, type: "melee" },
     pipe: { dmg: 40, kb: 170, type: "melee" },
     machete: { dmg: 60, kb: 110, type: "melee" },
-    pistol: { dmg: 28, kb: 60, type: "ranged", cooldown: 0.28, speed: 420, range: 280 },
+    pistol: { dmg: 28, kb: 60, type: "ranged", cooldown: 0.28, speed: 680, range: 320 },
     _default: { dmg: 40, kb: 140, type: "melee" },
   };
   const PICKUP_HEAL = 35;
@@ -425,7 +425,7 @@
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
         dmg: ws.dmg, kb: ws.kb, range: ws.range || 250, dist: 0,
-        life: 0.55,
+        life: 0.48,
         trail: []
       });
       player.shootCd = ws.cooldown || 0.3;
@@ -543,7 +543,7 @@
       if (!pr.trail) pr.trail = [];
       pr.trail.push({ x: pr.x, y: pr.y, t: 0 });
       for (const p of pr.trail) p.t += dt;
-      pr.trail = pr.trail.filter((p) => p.t < 0.12);
+      pr.trail = pr.trail.filter((p) => p.t < 0.28);
       pr.x += pr.vx * dt;
       pr.y += pr.vy * dt;
       pr.dist += Math.hypot(pr.vx, pr.vy) * dt;
@@ -978,25 +978,34 @@
     items.sort((a, b) => a.y - b.y);
     for (const it of items) it.f();
     if (debug) drawDebug();
-    // projectiles: single-pixel flash + quick smoke trail
+    // projectiles: 2px blazing hot flash + visible smoke trail
     for (const pr of projectiles) {
-      // smoke trail (older = fainter)
+      // smoke trail (hot orange fading to gray, longer)
       if (pr.trail) {
         for (const p of pr.trail) {
-          const a = 1 - p.t / 0.12;
+          const a = 1 - p.t / 0.28;
           const x = Math.round(p.x - camX), y = Math.round(p.y - camY);
-          ctx.fillStyle = `rgba(160,160,160,${(a * 0.45).toFixed(3)})`;
-          ctx.fillRect(x, y, 1, 1);
-          if (a > 0.5) {
-            ctx.fillStyle = `rgba(90,90,90,${(a * 0.25).toFixed(3)})`;
-            ctx.fillRect(x + 1, y, 1, 1);
+          // hotter near the tip, cooler/grayer farther back
+          const hot = a > 0.55;
+          if (hot) {
+            ctx.fillStyle = `rgba(255,140,40,${(a * 0.55).toFixed(3)})`;
+            ctx.fillRect(x - 1, y - 1, 3, 3);
           }
+          ctx.fillStyle = `rgba(${hot ? 200 : 120},${hot ? 120 : 110},${hot ? 80 : 90},${(a * 0.4).toFixed(3)})`;
+          ctx.fillRect(x, y, 2, 2);
         }
       }
-      // bright single-pixel flash at tip
+      // blazing hot 2px core + glow
       const x = Math.round(pr.x - camX), y = Math.round(pr.y - camY);
-      ctx.fillStyle = "#fffef0";
-      ctx.fillRect(x, y, 1, 1);
+      // outer glow
+      ctx.fillStyle = "rgba(255,180,60,0.55)";
+      ctx.fillRect(x - 2, y - 2, 6, 6);
+      // mid orange
+      ctx.fillStyle = "#ffaa22";
+      ctx.fillRect(x - 1, y - 1, 4, 4);
+      // white-hot core (2px)
+      ctx.fillStyle = "#fff8e0";
+      ctx.fillRect(x, y, 2, 2);
     }
     // pickups
     for (const pk of pickups) {
