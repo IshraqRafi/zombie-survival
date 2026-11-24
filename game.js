@@ -53,6 +53,7 @@
   const player = {};
   let zombies = [];
   let projectiles = [];
+  let damagePops = [];
   let pickups = [];
   let nextZombieId = 1;
   let nextProjectileId = 1;
@@ -298,6 +299,12 @@
     const piv = A.z.pivot;
     return [z.x + r[0] - piv[0], z.y + r[1] - piv[1], r[2], r[3]];
   }
+  // Upper portion of the body = head (dynamic hitbox)
+  function headRect(z) {
+    const b = bodyRect(z);
+    const headH = Math.max(7, Math.round(b[3] * 0.32));
+    return [b[0], b[1], b[2], headH];
+  }
   function freeSpot(foot, avoidX, avoidY, minDist) {
     for (let i = 0; i < 200; i++) {
       const x = rand(40, WORLD_W - 40), y = rand(60, WORLD_H - 30);
@@ -526,7 +533,8 @@
             if (rectsOverlap(box, bodyRect(z))) {
               p.hitSet.add(z.id);
               const ws = WEAPON_STATS[p.weapon] || WEAPON_STATS._default;
-              z.takeHit(ws.dmg, ws.kb, p.x, p.y);
+              const isHead = rectsOverlap(box, headRect(z));
+              z.takeHit(ws.dmg, ws.kb, p.x, p.y, isHead);
               stats.playerHits++;
               playSpatial(["hit","hit2","hit3"][(Math.random()*3)|0], z.x, z.y, 0.8, 0.9 + Math.random() * 0.2);
               spawnBlood(z.x, z.y - 10, 4);
@@ -552,7 +560,8 @@
       for (const z of zombies) {
         if (!z.hittable()) continue;
         if (rectsOverlap([pr.x - 3, pr.y - 3, 6, 6], bodyRect(z))) {
-          z.takeHit(pr.dmg, pr.kb, pr.x, pr.y);
+          const isHead = rectsOverlap([pr.x - 2, pr.y - 2, 4, 4], headRect(z));
+          z.takeHit(pr.dmg, pr.kb, pr.x, pr.y, isHead);
           stats.playerHits++;
           playSpatial(["hit","hit2","hit3"][(Math.random()*3)|0], z.x, z.y, 0.65, 1.0 + Math.random() * 0.15);
           spawnBlood(z.x, z.y - 8, 3);
@@ -633,8 +642,20 @@
       if (this.state !== s) log.push({ t: time, ev: "zstate", zombie: this.id, from: this.state, to: s });
       this.state = s; this.stateT = 0;
     }
-    takeHit(dmg, kb, fx, fy) {
-      this.hp -= dmg;
+    takeHit(dmg, kb, fx, fy, isHead) {
+      const mult = isHead ? 1.9 : 1;
+      const final = Math.round(dmg * mult);
+      this.hp -= final;
+      // floating damage number above head
+      const br = bodyRect(this);
+      damagePops.push({
+        x: this.x,
+        y: br[1] - 4,
+        text: (isHead ? "!" : "") + final,
+        t: 0,
+        life: 0.85,
+        head: !!isHead
+      });
       const dx = this.x - fx, dy = this.y - fy, d = Math.hypot(dx, dy) || 1;
       this.kx = (dx / d) * kb; this.ky = (dy / d) * kb;
       this.dir = dirFromVec(-dx, -dy, this.dir); // face the attacker
@@ -795,6 +816,7 @@
     zombies = [];
     projectiles = [];
     pickups = [];
+    damagePops = [];
     stats.kills = 0;
     stats.wave = 1;
     stats.startTime = performance.now() / 1000;
@@ -894,23 +916,24 @@
       if (z.anim === "hurt") ctx.drawImage(Z.fx, sx, sy, F, F, ox, oy, F, F); // blood spray layer
     }
     ctx.restore();
-    // red exclamation mark when just noticed the player
+    // small red exclamation mark right above head on notice
     if (z.noticeMark > 0 && z.solid()) {
-      const mx = ox + F / 2;
-      const my = oy - 8;
-      const pulse = 1 + Math.sin(time * 12) * 0.12;
+      const br = bodyRect(z);
+      const mx = Math.round(z.x - camX);
+      const my = Math.round(br[1] - camY) - 6;
+      const pulse = 1 + Math.sin(time * 14) * 0.1;
       ctx.save();
       ctx.translate(mx, my);
       ctx.scale(pulse, pulse);
       ctx.fillStyle = "#ff2a2a";
       ctx.strokeStyle = "#3a0000";
-      ctx.lineWidth = 1;
-      // exclamation body
-      ctx.fillRect(-2, -14, 4, 10);
-      ctx.strokeRect(-2, -14, 4, 10);
-      // dot
+      ctx.lineWidth = 0.6;
+      // smaller body
+      ctx.fillRect(-1.2, -9, 2.4, 6.5);
+      ctx.strokeRect(-1.2, -9, 2.4, 6.5);
+      // smaller dot
       ctx.beginPath();
-      ctx.arc(0, -1, 2.2, 0, Math.PI * 2);
+      ctx.arc(0, -0.8, 1.3, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
       ctx.restore();
@@ -1037,6 +1060,61 @@
       ctx.fillRect(x, y, b.size, b.size);
     }
     ctx.globalAlpha = 1;
+
+    // floating damage numbers
+    ctx.font = "6px monospace";
+    ctx.textAlign = "center";
+    for (const p of damagePops) {
+      const a = 1 - p.t / p.life;
+      const x = Math.round(p.x - camX);
+      const y = Math.round(p.y - camY);
+      ctx.globalAlpha = Math.max(0, a);
+      ctx.fillStyle = p.head ? "#ffee55" : "#ffffff";
+      ctx.strokeStyle = "#000";
+      ctx.lineWidth = 0.8;
+      ctx.strokeText(p.text, x, y);
+      ctx.fillText(p.text, x, y);
+    }
+    ctx.globalAlpha = 1;
+    ctx.textAlign = "left";
+
+    // off-screen detection indicators (edge of screen)
+    const margin = 10;
+    for (const z of zombies) {
+      if (!z.solid()) continue;
+      const detected = z.state === "sense" || z.state === "chase" || z.state === "attack";
+      if (!detected) continue;
+      const sx = z.x - camX;
+      const sy = z.y - camY;
+      const onScreen = sx >= 2 && sx <= viewW - 2 && sy >= 2 && sy <= viewH - 2;
+      if (onScreen) continue;
+      // clamp to screen edge in the direction of the zombie
+      const cx = viewW / 2, cy = viewH / 2;
+      const dx = z.x - (camX + cx), dy = z.y - (camY + cy);
+      const angle = Math.atan2(dy, dx);
+      const hw = viewW / 2 - margin, hh = viewH / 2 - margin;
+      const cos = Math.cos(angle), sin = Math.sin(angle);
+      const tx = Math.abs(cos) < 0.001 ? 1e9 : hw / Math.abs(cos);
+      const ty = Math.abs(sin) < 0.001 ? 1e9 : hh / Math.abs(sin);
+      const t = Math.min(tx, ty);
+      const ex = cx + cos * t;
+      const ey = cy + sin * t;
+      const pulse = 1 + Math.sin(time * 10) * 0.08;
+      ctx.save();
+      ctx.translate(ex, ey);
+      ctx.scale(pulse, pulse);
+      ctx.fillStyle = "#ff2a2a";
+      ctx.strokeStyle = "#3a0000";
+      ctx.lineWidth = 0.7;
+      ctx.fillRect(-1.4, -10, 2.8, 7);
+      ctx.strokeRect(-1.4, -10, 2.8, 7);
+      ctx.beginPath();
+      ctx.arc(0, -1, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+
     // atmospheric fog / vignette
     const fog = ctx.createRadialGradient(viewW/2, viewH/2, viewW*0.25, viewW/2, viewH/2, viewW*0.75);
     fog.addColorStop(0, "rgba(80,90,100,0.0)");
@@ -1049,6 +1127,15 @@
     ctx.fillRect(0, 0, viewW, viewH);
   }
 
+
+  function updateDamagePops(dt) {
+    for (const p of damagePops) {
+      p.t += dt;
+      p.y -= 18 * dt; // float upward
+    }
+    damagePops = damagePops.filter((p) => p.t < p.life);
+  }
+
   // ---------- loop ----------
   function step(now) {
     const dt = Math.min(0.05, (now - last) / 1000 || 0);
@@ -1058,6 +1145,7 @@
     updatePickups(dt);
     updateRain(dt);
     updateBlood(dt);
+    updateDamagePops(dt);
     for (const z of zombies) z.update(dt);
     resolveOverlaps();
     const before = zombies.length;
