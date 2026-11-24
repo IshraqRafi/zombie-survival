@@ -261,6 +261,27 @@
     return { x: 40, y: 60 };
   }
 
+  // ---------- audio (Kenney CC0) ----------
+  const SFX = {};
+  function loadSfx() {
+    const names = ["step", "step2", "swing", "hit", "shot", "pickup"];
+    for (const n of names) {
+      const a = new Audio(`assets/audio/${n}.ogg`);
+      a.preload = "auto";
+      a.volume = (n === "step" || n === "step2") ? 0.32 : 0.55;
+      SFX[n] = a;
+    }
+  }
+  function play(name, vol = 1, rate = 1) {
+    const a = SFX[name];
+    if (!a) return;
+    const c = a.cloneNode();
+    c.volume = Math.min(1, (a.volume || 0.5) * vol);
+    c.playbackRate = rate;
+    c.play().catch(() => {});
+  }
+  loadSfx();
+
   // ---------- player ----------
   function resetPlayer() {
     Object.assign(player, {
@@ -295,12 +316,14 @@
         life: 1.2
       });
       player.shootCd = ws.cooldown || 0.3;
+      play("shot", 0.7, 0.95 + Math.random() * 0.1);
       log.push({ t: time, ev: "shoot", weapon: player.weapon });
       return;
     }
     if (player.anim === ATTACK) return;
     if (faceX !== undefined) player.dir = dirFromVec(faceX, faceY, player.dir);
     setPlayerAnim(ATTACK);
+    play("swing", 0.6, 0.9 + Math.random() * 0.2);
   }
   function setWeapon(name) {
     if (name !== "pistol" && !A.p.weapons.weapons[name]) return;
@@ -352,7 +375,14 @@
         p.dir = dirFromVec(ix, iy, p.dir);
         const sp = sprint ? RUN_SPEED : WALK_SPEED;
         moveWithCollision(p, P.foot, ix * sp * dt, iy * sp * dt);
-      }
+        // footsteps
+        p.stepT = (p.stepT || 0) + dt;
+        const stepInterval = sprint ? 0.22 : 0.38;
+        if (p.stepT >= stepInterval) {
+          p.stepT = 0;
+          play(Math.random() < 0.5 ? "step" : "step2", 0.8, sprint ? 1.15 : 0.95);
+        }
+      } else p.stepT = 0;
     } else if (moving) {
       // tiny drift while swinging keeps it responsive without sliding
       moveWithCollision(p, P.foot, ix * 18 * dt, iy * 18 * dt);
@@ -382,6 +412,7 @@
               const ws = WEAPON_STATS[p.weapon] || WEAPON_STATS._default;
               z.takeHit(ws.dmg, ws.kb, p.x, p.y);
               stats.playerHits++;
+              play("hit", 0.65, 0.85 + Math.random() * 0.3);
               log.push({ t: time, ev: "playerHit", zombie: z.id, weapon: p.weapon, frame: p.frame });
             }
           }
@@ -401,6 +432,7 @@
         if (rectsOverlap([pr.x - 3, pr.y - 3, 6, 6], bodyRect(z))) {
           z.takeHit(pr.dmg, pr.kb, pr.x, pr.y);
           stats.playerHits++;
+          play("hit", 0.5, 1.1 + Math.random() * 0.2);
           pr.life = 0;
           log.push({ t: time, ev: "bulletHit", zombie: z.id });
           break;
@@ -425,6 +457,7 @@
       if (Math.hypot(pk.x - player.x, pk.y - player.y) < 16 && !player.dead) {
         if (pk.type === "health") {
           player.hp = Math.min(PLAYER_HP, player.hp + PICKUP_HEAL);
+          play("pickup", 0.7, 1.05);
           log.push({ t: time, ev: "pickup", type: "health" });
         }
         pickups.splice(i, 1);
@@ -442,6 +475,7 @@
     const dx = p.x - fromX, dy = p.y - fromY, d = Math.hypot(dx, dy) || 1;
     p.kx = (dx / d) * 160; p.ky = (dy / d) * 160;
     stats.zombieHits++;
+    play("hit", 0.8, 0.7);
     if (p.hp <= 0) {
       p.dead = true; setPlayerAnim("idle");
       const survived = Math.floor(time);
@@ -481,7 +515,7 @@
       this.kx = (dx / d) * kb; this.ky = (dy / d) * kb;
       this.dir = dirFromVec(-dx, -dy, this.dir); // face the attacker
       this.lastSeen = { x: player.x, y: player.y };
-      if (this.hp <= 0) { this.setState("death"); this.setAnim("death"); stats.kills++; }
+      if (this.hp <= 0) { this.setState("death"); this.setAnim("death"); stats.kills++; play("hit", 0.45, 0.55); }
       else { this.setState("hurt"); this.setAnim("hurt"); this.anim = "hurt"; this.frame = 0; this.t = 0; this.done = false; }
     }
     advance(dt) {
