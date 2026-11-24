@@ -242,6 +242,15 @@
     tryAxis(0, dx); tryAxis(1, dy);
   }
   function footRect(e, foot) { return [e.x + foot.rect[0], e.y + foot.rect[1], foot.rect[2], foot.rect[3]]; }
+  // Full body hurtbox (not just the feet ellipse)
+  function bodyRect(z) {
+    const v = A.z.hit.variants[z.variant];
+    const hf = v.hurtbox_frames && v.hurtbox_frames[z.anim + "_" + z.dir];
+    const r = (hf && hf[z.frame]) || (v.hurtbox[z.dir] && v.hurtbox[z.dir].rect);
+    if (!r) return footRect(z, A.z.foot);
+    const piv = A.z.pivot;
+    return [z.x + r[0] - piv[0], z.y + r[1] - piv[1], r[2], r[3]];
+  }
   function freeSpot(foot, avoidX, avoidY, minDist) {
     for (let i = 0; i < 200; i++) {
       const x = rand(40, WORLD_W - 40), y = rand(60, WORLD_H - 30);
@@ -368,7 +377,7 @@
           const box = [p.x + r[0], p.y + r[1], r[2], r[3]];
           for (const z of zombies) {
             if (!z.hittable() || p.hitSet.has(z.id)) continue;
-            if (rectsOverlap(box, footRect(z, A.z.foot))) {
+            if (rectsOverlap(box, bodyRect(z))) {
               p.hitSet.add(z.id);
               const ws = WEAPON_STATS[p.weapon] || WEAPON_STATS._default;
               z.takeHit(ws.dmg, ws.kb, p.x, p.y);
@@ -386,13 +395,10 @@
       pr.y += pr.vy * dt;
       pr.dist += Math.hypot(pr.vx, pr.vy) * dt;
       pr.life -= dt;
-      // hit zombies (generous hitbox so small bullets connect)
+      // hit zombies using full body hurtbox
       for (const z of zombies) {
         if (!z.hittable()) continue;
-        const zr = footRect(z, A.z.foot);
-        // expand a bit for reliability
-        const box = [zr[0] - 6, zr[1] - 10, zr[2] + 12, zr[3] + 14];
-        if (rectsOverlap([pr.x - 4, pr.y - 4, 8, 8], box)) {
+        if (rectsOverlap([pr.x - 3, pr.y - 3, 6, 6], bodyRect(z))) {
           z.takeHit(pr.dmg, pr.kb, pr.x, pr.y);
           stats.playerHits++;
           pr.life = 0;
