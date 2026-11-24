@@ -7,8 +7,11 @@
   const WORLD_W = 1024, WORLD_H = 768, TILE = 16;
   const WALK_SPEED = 72, RUN_SPEED = 140;
   const PLAYER_HP = 100, ZOMBIE_HP = 100, ZOMBIE_COUNT = 6;
+  const MAX_STAMINA = 100, STAMINA_DRAIN = 35, STAMINA_REGEN = 18;
   const SENSE_RADIUS = 150, LOSE_TIME = 3;
   const Z_WALK = 16, Z_RUN = 50;
+  const WAVE_INTERVAL = 25; // seconds between wave increases
+  const KILLS_PER_WAVE = 8;
   // Gameplay tuning per weapon (art/boxes come from JSON; unknown weapons get the default).
   const WEAPON_STATS = {
     bat: { dmg: 34, kb: 150 }, bat_nails: { dmg: 50, kb: 140 },
@@ -24,8 +27,11 @@
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d", { alpha: false });
   const hpFill = document.getElementById("hpfill");
+  const stamFill = document.getElementById("stamfill");
   const weaponLabel = document.getElementById("weapon");
+  const statsLabel = document.getElementById("stats");
   const banner = document.getElementById("banner");
+  const bannerStats = document.getElementById("banner-stats");
 
   const keys = new Set();
   let A = null; // loaded assets + parsed data
@@ -35,7 +41,7 @@
   const player = {};
   let zombies = [];
   let nextZombieId = 1;
-  const stats = { playerHits: 0, zombieHits: 0, kills: 0 };
+  const stats = { playerHits: 0, zombieHits: 0, kills: 0, startTime: 0, wave: 1 };
   const log = [];
 
   // ---------- helpers ----------
@@ -239,7 +245,7 @@
   function resetPlayer() {
     Object.assign(player, {
       x: WORLD_W / 2, y: WORLD_H / 2 + 40, dir: "down", anim: "idle", frame: 0, t: 0,
-      hp: PLAYER_HP, dead: false, inv: 0, kx: 0, ky: 0, hitSet: new Set(), flash: 0,
+      hp: PLAYER_HP, stamina: MAX_STAMINA, dead: false, inv: 0, kx: 0, ky: 0, hitSet: new Set(), flash: 0,
       weapon: player.weapon || A.p.weaponNames[0], queued: false,
     });
   }
@@ -272,12 +278,21 @@
     if (keys.has("KeyS") || keys.has("ArrowDown")) iy += 1;
     const len = Math.hypot(ix, iy);
     if (len) { ix /= len; iy /= len; }
-    return { ix, iy, moving: len > 0, sprint: keys.has("ShiftLeft") || keys.has("ShiftRight") };
+    const wantSprint = keys.has("ShiftLeft") || keys.has("ShiftRight");
+    const canSprint = player.stamina > 8;
+    return { ix, iy, moving: len > 0, sprint: wantSprint && canSprint };
   }
 
   function updatePlayer(dt) {
     const p = player, P = A.p;
     p.inv = Math.max(0, p.inv - dt); p.flash = Math.max(0, p.flash - dt);
+    // stamina
+    const { ix, iy, moving, sprint } = inputVector();
+    if (sprint && moving) {
+      p.stamina = Math.max(0, p.stamina - STAMINA_DRAIN * dt);
+    } else {
+      p.stamina = Math.min(MAX_STAMINA, p.stamina + STAMINA_REGEN * dt);
+    }
     // knockback decay
     if (p.kx || p.ky) {
       moveWithCollision(p, P.foot, p.kx * dt, p.ky * dt);
@@ -285,7 +300,6 @@
       if (Math.hypot(p.kx, p.ky) < 2) p.kx = p.ky = 0;
     }
     if (p.dead) return;
-    const { ix, iy, moving, sprint } = inputVector();
     if (p.anim !== ATTACK) {
       setPlayerAnim(!moving ? "idle" : sprint ? "run" : "walk");
       if (moving) {
@@ -339,6 +353,8 @@
     stats.zombieHits++;
     if (p.hp <= 0) {
       p.dead = true; setPlayerAnim("idle");
+      const survived = Math.floor(time);
+      bannerStats.textContent = `Kills: ${stats.kills} · Survived: ${survived}s · Wave ${stats.wave}`;
       banner.style.display = "block";
       log.push({ t: time, ev: "playerDead" });
     }
@@ -509,6 +525,10 @@
   function resetWorld() {
     resetPlayer();
     zombies = [];
+    stats.kills = 0;
+    stats.wave = 1;
+    stats.startTime = performance.now() / 1000;
+    time = 0;
     for (let i = 0; i < ZOMBIE_COUNT; i++) spawnZombie();
     banner.style.display = "none";
     setWeapon(player.weapon);
@@ -677,8 +697,22 @@
     resolveOverlaps();
     const before = zombies.length;
     zombies = zombies.filter((z) => !z.remove);
-    for (let i = zombies.length; i < before; i++) spawnZombie(260); // keep a handful around
+    // wave progression
+    const targetCount = ZOMBIE_COUNT + (stats.wave - 1);
+    for (let i = zombies.length; i < Math.max(before, targetCount); i++) spawnZombie(260);
+    // advance wave by time or kills
+    const nextWaveByTime = Math.floor(time / WAVE_INTERVAL) + 1;
+    const nextWaveByKills = Math.floor(stats.kills / KILLS_PER_WAVE) + 1;
+    const newWave = Math.max(nextWaveByTime, nextWaveByKills);
+    if (newWave > stats.wave) {
+      stats.wave = newWave;
+      log.push({ t: time, ev: "wave", wave: stats.wave });
+    }
+    // HUD
     hpFill.style.width = (player.hp / PLAYER_HP) * 100 + "%";
+    stamFill.style.width = (player.stamina / MAX_STAMINA) * 100 + "%";
+    const survived = Math.floor(time);
+    statsLabel.textContent = `Kills: ${stats.kills} · Time: ${survived}s · Wave ${stats.wave}`;
     camX = clamp(player.x - viewW / 2, 0, Math.max(0, WORLD_W - viewW));
     camY = clamp(player.y - 20 - viewH / 2, 0, Math.max(0, WORLD_H - viewH));
     draw();
