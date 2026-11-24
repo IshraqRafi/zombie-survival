@@ -559,7 +559,6 @@
     const dx = p.x - fromX, dy = p.y - fromY, d = Math.hypot(dx, dy) || 1;
     p.kx = (dx / d) * 160; p.ky = (dy / d) * 160;
     stats.zombieHits++;
-    play("zombie_scream", 0.55, 0.9 + Math.random() * 0.15);
     if (p.hp <= 0) {
       p.dead = true; setPlayerAnim("idle");
       const survived = Math.floor(time);
@@ -582,7 +581,7 @@
       this.anim = "idle"; this.frame = 0; this.t = 0; this.done = false;
       this.state = "wander"; this.stateT = 0; this.alpha = 1;
       this.target = null; this.pause = rand(0.5, 2);
-      this.lastSeen = null; this.lostT = 0; this.dealt = false; this.cooldown = 0; this.groanT = rand(2, 6);
+      this.lastSeen = null; this.lostT = 0; this.dealt = false; this.cooldown = 0; this.groanT = rand(2, 6); this.noticeMark = 0;
     }
     hittable() {
       return this.state !== "death" && this.state !== "decay" && this.state !== "fade" && A.z.hurtActive[this.anim] !== false;
@@ -653,18 +652,15 @@
     solid() { return this.state !== "death" && this.state !== "decay" && this.state !== "fade"; }
     update(dt) {
       this.stateT += dt; this.cooldown = Math.max(0, this.cooldown - dt);
-      // occasional zombie vocalizations
-      if (this.solid()) {
+      // occasional soft groans only (no scream)
+      if (this.solid() && this.state !== "sense") {
         this.groanT -= dt;
         if (this.groanT <= 0) {
-          this.groanT = rand(4, 9);
-          if (this.state === "chase" || this.state === "sense") {
-            play(Math.random() < 0.4 ? "zombie_scream" : (Math.random() < 0.5 ? "zombie_groan" : "zombie_groan2"), 0.4, 0.85 + Math.random() * 0.3);
-          } else {
-            play(Math.random() < 0.5 ? "zombie_groan" : "zombie_groan2", 0.28, 0.8 + Math.random() * 0.4);
-          }
+          this.groanT = rand(5, 11);
+          play(Math.random() < 0.5 ? "zombie_groan" : "zombie_groan2", 0.22, 0.8 + Math.random() * 0.4);
         }
       }
+      if (this.noticeMark > 0) this.noticeMark = Math.max(0, this.noticeMark - dt);
       if (this.kx || this.ky) {
         moveWithCollision(this, A.z.foot, this.kx * dt, this.ky * dt);
         const k = Math.exp(-9 * dt); this.kx *= k; this.ky *= k;
@@ -675,7 +671,12 @@
       if (sees) { this.lastSeen = { x: player.x, y: player.y }; this.lostT = 0; }
       switch (this.state) {
         case "wander": {
-          if (sees) { this.setState("sense"); this.setAnim("sense"); break; }
+          if (sees) {
+            this.setState("sense"); this.setAnim("sense");
+            this.noticeMark = 1.4;
+            play("zombie_scream", 0.65, 0.92 + Math.random() * 0.16);
+            break;
+          }
           if (this.pause > 0) {
             this.setAnim("idle"); this.pause -= dt;
             if (this.pause <= 0) {
@@ -854,6 +855,27 @@
       if (z.anim === "hurt") ctx.drawImage(Z.fx, sx, sy, F, F, ox, oy, F, F); // blood spray layer
     }
     ctx.restore();
+    // red exclamation mark when just noticed the player
+    if (z.noticeMark > 0 && z.solid()) {
+      const mx = ox + F / 2;
+      const my = oy - 8;
+      const pulse = 1 + Math.sin(time * 12) * 0.12;
+      ctx.save();
+      ctx.translate(mx, my);
+      ctx.scale(pulse, pulse);
+      ctx.fillStyle = "#ff2a2a";
+      ctx.strokeStyle = "#3a0000";
+      ctx.lineWidth = 1;
+      // exclamation body
+      ctx.fillRect(-2, -14, 4, 10);
+      ctx.strokeRect(-2, -14, 4, 10);
+      // dot
+      ctx.beginPath();
+      ctx.arc(0, -1, 2.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
   }
 
   function strokeRect(r, color) {
