@@ -48,16 +48,33 @@
   const ctx = canvas.getContext("2d", { alpha: false });
   const hpFill = document.getElementById("hpfill");
   const stamFill = document.getElementById("stamfill");
-  const weaponLabel = document.getElementById("weapon");
+  const hpVal = document.getElementById("hpval");
+  const stamVal = document.getElementById("stamval");
   const statsLabel = document.getElementById("stats");
   const banner = document.getElementById("banner");
   const bannerStats = document.getElementById("banner-stats");
+  const hud = document.getElementById("hud");
+  const selectedBox = document.getElementById("selected");
+  const selectedIcon = document.getElementById("selected-icon");
+  const selectedName = document.getElementById("selected-name");
+  const selectedAmmo = document.getElementById("selected-ammo");
+  const hotbar = document.getElementById("hotbar");
+  const startMenu = document.getElementById("start-menu");
+  const pauseMenu = document.getElementById("pause-menu");
+  const settingsPanel = document.getElementById("settings-panel");
 
   const keys = new Set();
   let A = null; // loaded assets + parsed data
   let gunSheet = null;
   let scale = 4, viewW = 320, viewH = 180, camX = 0, camY = 0, last = 0;
   let ready = false, debug = false, ground = null, time = 0;
+  let uiState = "menu"; // menu | settings | playing | pausing | paused
+  let started = false;
+  let settingsFrom = "menu";
+  let shockT = 0;
+  const SHOCK_DUR = 0.42;
+  let fxCanvas = null, fxCtx = null;
+  const weaponIcons = {};
   let mouse = { x: 0, y: 0 };
   const player = {};
   let zombies = [];
@@ -465,7 +482,7 @@
   function setWeapon(name) {
     if (!A.p.weapons.weapons[name] && !RANGED_SPRITES[name]) return;
     player.weapon = name;
-    weaponLabel.textContent = name.replace("_", " ");
+    refreshWeaponUI();
     log.push({ t: time, ev: "weapon", name });
   }
   function cycleWeapon(step) {
@@ -1171,40 +1188,250 @@
     damagePops = damagePops.filter((p) => p.t < p.life);
   }
 
+
+  // ---------- UI ----------
+  function showOverlay(el) {
+    startMenu.classList.remove("show");
+    pauseMenu.classList.remove("show");
+    settingsPanel.classList.remove("show");
+    if (el) el.classList.add("show");
+  }
+  function hideOverlays() {
+    startMenu.classList.remove("show");
+    pauseMenu.classList.remove("show");
+    settingsPanel.classList.remove("show");
+  }
+  function setHud(on) {
+    hud.classList.toggle("on", on);
+    selectedBox.classList.toggle("on", on);
+    hotbar.classList.toggle("on", on);
+  }
+  function ensureFx() {
+    if (!fxCanvas) {
+      fxCanvas = document.createElement("canvas");
+      fxCtx = fxCanvas.getContext("2d");
+    }
+    if (fxCanvas.width !== canvas.width || fxCanvas.height !== canvas.height) {
+      fxCanvas.width = canvas.width;
+      fxCanvas.height = canvas.height;
+    }
+  }
+  function makeWeaponIcon(name) {
+    const c = document.createElement("canvas");
+    c.width = 48; c.height = 48;
+    const x = c.getContext("2d");
+    x.imageSmoothingEnabled = false;
+    if (RANGED_SPRITES[name] && gunSheet) {
+      const s = RANGED_SPRITES[name];
+      x.drawImage(gunSheet, s.x * 32, s.y * 32, 32, 32, 6, 8, 36, 36);
+    } else if (A.p.rot[name]) {
+      x.drawImage(A.p.rot[name], 0, 0, 64, 64, 4, 4, 40, 40);
+    }
+    return c;
+  }
+  function buildHotbar() {
+    hotbar.innerHTML = "";
+    A.p.weaponNames.forEach((name, i) => {
+      const icon = makeWeaponIcon(name);
+      weaponIcons[name] = icon;
+      const slot = document.createElement("div");
+      slot.className = "slot";
+      slot.dataset.weapon = name;
+      const key = document.createElement("span");
+      key.className = "key";
+      key.textContent = String(i + 1);
+      const amt = document.createElement("span");
+      amt.className = "amt";
+      amt.id = "amt-" + name;
+      slot.appendChild(icon);
+      slot.appendChild(key);
+      slot.appendChild(amt);
+      slot.addEventListener("click", () => {
+        if (uiState === "playing") setWeapon(name);
+      });
+      hotbar.appendChild(slot);
+    });
+    refreshWeaponUI();
+  }
+  function refreshWeaponUI() {
+    if (!player.weapon) return;
+    const name = player.weapon;
+    document.querySelectorAll("#hotbar .slot").forEach((s) => {
+      s.classList.toggle("selected", s.dataset.weapon === name);
+    });
+    selectedName.textContent = name.replace(/_/g, " ");
+    const ranged = (WEAPON_STATS[name] || {}).type === "ranged";
+    const ammo = Math.floor(player.ammo || 0);
+    selectedAmmo.textContent = ranged ? "AMMO " + ammo : "";
+    const ic = selectedIcon.getContext("2d");
+    ic.imageSmoothingEnabled = false;
+    ic.clearRect(0, 0, 48, 48);
+    if (weaponIcons[name]) ic.drawImage(weaponIcons[name], 0, 0);
+    document.querySelectorAll("#hotbar .amt").forEach((el) => {
+      const w = el.id.slice(4);
+      const isR = (WEAPON_STATS[w] || {}).type === "ranged";
+      el.textContent = isR ? String(Math.floor(player.ammo || 0)) : "";
+      el.parentElement.classList.toggle("empty-ammo", isR && (player.ammo || 0) < 1);
+    });
+  }
+  function updateBars() {
+    const hp = Math.max(0, player.hp || 0);
+    const st = Math.max(0, player.stamina || 0);
+    hpFill.style.width = (hp / PLAYER_HP) * 100 + "%";
+    stamFill.style.width = (st / MAX_STAMINA) * 100 + "%";
+    hpVal.textContent = String(Math.ceil(hp));
+    stamVal.textContent = String(Math.ceil(st));
+    const survived = Math.floor(time);
+    statsLabel.textContent = `Kills ${stats.kills}  ·  ${survived}s  ·  Wave ${stats.wave}`;
+    refreshWeaponUI();
+  }
+  function startGame() {
+    hideOverlays();
+    banner.style.display = "none";
+    resetWorld();
+    started = true;
+    uiState = "playing";
+    setHud(true);
+    refreshWeaponUI();
+  }
+  function beginPause() {
+    if (uiState !== "playing") return;
+    uiState = "pausing";
+    shockT = 0;
+  }
+  function resumeGame() {
+    hideOverlays();
+    uiState = "playing";
+    setHud(true);
+  }
+  function leaveToMenu() {
+    hideOverlays();
+    banner.style.display = "none";
+    uiState = "menu";
+    setHud(false);
+    showOverlay(startMenu);
+  }
+  function openSettings(from) {
+    settingsFrom = from;
+    hideOverlays();
+    uiState = "settings";
+    showOverlay(settingsPanel);
+  }
+  function closeSettings() {
+    hideOverlays();
+    if (settingsFrom === "pause") {
+      uiState = "paused";
+      showOverlay(pauseMenu);
+    } else {
+      uiState = "menu";
+      showOverlay(startMenu);
+    }
+  }
+  function drawBackdrop() {
+    ctx.fillStyle = "#10120e";
+    ctx.fillRect(0, 0, viewW, viewH);
+    if (ground) {
+      ctx.globalAlpha = 0.28;
+      ctx.drawImage(ground, -40, -20);
+      ctx.globalAlpha = 1;
+    }
+  }
+  function blitGrayscale(filter) {
+    ensureFx();
+    fxCtx.setTransform(1, 0, 0, 1, 0, 0);
+    fxCtx.filter = filter;
+    fxCtx.drawImage(canvas, 0, 0);
+    fxCtx.filter = "none";
+  }
+  function drawShockwave() {
+    const t = Math.min(1, shockT / SHOCK_DUR);
+    blitGrayscale("grayscale(1) contrast(1.12) brightness(0.92)");
+    const cx = viewW / 2, cy = viewH / 2;
+    const maxR = Math.hypot(viewW, viewH) * 0.72;
+    const r = Math.max(1, t * maxR);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(fxCanvas, 0, 0);
+    ctx.restore();
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    // white ring + soft flash
+    const fade = 1 - t;
+    ctx.save();
+    ctx.strokeStyle = `rgba(255,255,255,${(0.95 * fade).toFixed(3)})`;
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = `rgba(255,255,255,${(0.35 * fade).toFixed(3)})`;
+    ctx.lineWidth = 7;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r + 3, 0, Math.PI * 2);
+    ctx.stroke();
+    if (t < 0.18) {
+      ctx.fillStyle = `rgba(255,255,255,${(0.22 * (1 - t / 0.18)).toFixed(3)})`;
+      ctx.fillRect(0, 0, viewW, viewH);
+    }
+    ctx.restore();
+  }
+  function drawGrayscale() {
+    blitGrayscale("grayscale(1) contrast(1.08) brightness(0.78)");
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(fxCanvas, 0, 0);
+    ctx.restore();
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  }
+
   // ---------- loop ----------
   function step(now) {
     const dt = Math.min(0.05, (now - last) / 1000 || 0);
-    last = now; time += dt;
-    updatePlayer(dt);
-    updateProjectiles(dt);
-    updatePickups(dt);
-    updateRain(dt);
-    updateBlood(dt);
-    updateDamagePops(dt);
-    for (const z of zombies) z.update(dt);
-    resolveOverlaps();
-    const before = zombies.length;
-    zombies = zombies.filter((z) => !z.remove);
-    // wave progression
-    const targetCount = ZOMBIE_COUNT + (stats.wave - 1);
-    for (let i = zombies.length; i < Math.max(before, targetCount); i++) spawnZombie(260);
-    // advance wave by time or kills
-    const nextWaveByTime = Math.floor(time / WAVE_INTERVAL) + 1;
-    const nextWaveByKills = Math.floor(stats.kills / KILLS_PER_WAVE) + 1;
-    const newWave = Math.max(nextWaveByTime, nextWaveByKills);
-    if (newWave > stats.wave) {
-      stats.wave = newWave;
-      log.push({ t: time, ev: "wave", wave: stats.wave });
+    last = now;
+    if (uiState === "playing") {
+      time += dt;
+      updatePlayer(dt);
+      updateProjectiles(dt);
+      updatePickups(dt);
+      updateRain(dt);
+      updateBlood(dt);
+      updateDamagePops(dt);
+      for (const z of zombies) z.update(dt);
+      resolveOverlaps();
+      const before = zombies.length;
+      zombies = zombies.filter((z) => !z.remove);
+      const targetCount = ZOMBIE_COUNT + (stats.wave - 1);
+      for (let i = zombies.length; i < Math.max(before, targetCount); i++) spawnZombie(260);
+      const nextWaveByTime = Math.floor(time / WAVE_INTERVAL) + 1;
+      const nextWaveByKills = Math.floor(stats.kills / KILLS_PER_WAVE) + 1;
+      const newWave = Math.max(nextWaveByTime, nextWaveByKills);
+      if (newWave > stats.wave) {
+        stats.wave = newWave;
+        log.push({ t: time, ev: "wave", wave: stats.wave });
+      }
+      updateBars();
+      camX = clamp(player.x - viewW / 2, 0, Math.max(0, WORLD_W - viewW));
+      camY = clamp(player.y - 20 - viewH / 2, 0, Math.max(0, WORLD_H - viewH));
+      draw();
+    } else if (uiState === "pausing" && started) {
+      shockT += dt;
+      camX = clamp(player.x - viewW / 2, 0, Math.max(0, WORLD_W - viewW));
+      camY = clamp(player.y - 20 - viewH / 2, 0, Math.max(0, WORLD_H - viewH));
+      draw();
+      drawShockwave();
+      if (shockT >= SHOCK_DUR) {
+        uiState = "paused";
+        showOverlay(pauseMenu);
+      }
+    } else if (started && (uiState === "paused" || (uiState === "settings" && settingsFrom === "pause"))) {
+      camX = clamp(player.x - viewW / 2, 0, Math.max(0, WORLD_W - viewW));
+      camY = clamp(player.y - 20 - viewH / 2, 0, Math.max(0, WORLD_H - viewH));
+      draw();
+      drawGrayscale();
+    } else {
+      drawBackdrop();
     }
-    // HUD
-    hpFill.style.width = (player.hp / PLAYER_HP) * 100 + "%";
-    stamFill.style.width = (player.stamina / MAX_STAMINA) * 100 + "%";
-    const survived = Math.floor(time);
-    const ammoTxt = (WEAPON_STATS[player.weapon] || {}).type === "ranged" ? ` · Ammo ${Math.floor(player.ammo || 0)}` : "";
-    statsLabel.textContent = `Kills: ${stats.kills} · Time: ${survived}s · Wave ${stats.wave}${ammoTxt}`;
-    camX = clamp(player.x - viewW / 2, 0, Math.max(0, WORLD_W - viewW));
-    camY = clamp(player.y - 20 - viewH / 2, 0, Math.max(0, WORLD_H - viewH));
-    draw();
     requestAnimationFrame(step);
   }
 
@@ -1212,9 +1439,17 @@
   const PREVENT = ["KeyW", "KeyA", "KeyS", "KeyD", "ShiftLeft", "ShiftRight", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "F1", "Space"];
   window.addEventListener("keydown", (e) => {
     ensureAudioCtx();
+    if (e.code === "Escape") {
+      e.preventDefault();
+      if (!ready || e.repeat) return;
+      if (uiState === "playing") beginPause();
+      else if (uiState === "paused") resumeGame();
+      else if (uiState === "settings") closeSettings();
+      return;
+    }
     if (PREVENT.includes(e.code)) e.preventDefault();
     keys.add(e.code);
-    if (!ready || e.repeat) return;
+    if (!ready || e.repeat || uiState !== "playing") return;
     if (e.code === "KeyJ" || e.code === "Space") startAttack();
     else if (e.code === "KeyQ") cycleWeapon(-1);
     else if (e.code === "KeyE") cycleWeapon(1);
@@ -1228,7 +1463,7 @@
   canvas.addEventListener("mousemove", (e) => { mouse.x = e.clientX; mouse.y = e.clientY; });
   canvas.addEventListener("mousedown", (e) => {
     ensureAudioCtx();
-    if (!ready || e.button !== 0) return;
+    if (!ready || uiState !== "playing" || e.button !== 0) return;
     const wx = e.clientX / scale + camX, wy = e.clientY / scale + camY;
     startAttack(wx - player.x, wy - (player.y - 20));
   });
@@ -1255,9 +1490,20 @@
     A = assets;
     makeGround(); resize();
     player.weapon = A.p.weaponNames[0];
-    resetWorld();
+    buildHotbar();
     ready = true;
+    uiState = "menu";
+    showOverlay(startMenu);
+    setHud(false);
     last = performance.now();
     requestAnimationFrame(step);
   }).catch((err) => console.error(err));
+
+  document.getElementById("btn-start").onclick = () => startGame();
+  document.getElementById("btn-settings-start").onclick = () => openSettings("menu");
+  document.getElementById("btn-resume").onclick = () => resumeGame();
+  document.getElementById("btn-restart").onclick = () => { hideOverlays(); startGame(); };
+  document.getElementById("btn-settings").onclick = () => openSettings("pause");
+  document.getElementById("btn-leave").onclick = () => leaveToMenu();
+  document.getElementById("btn-settings-back").onclick = () => closeSettings();
 })();
