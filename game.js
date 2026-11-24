@@ -24,11 +24,11 @@
     shotgun: { dmg: 22, kb: 70, type: "ranged", cooldown: 0.62, speed: 520, range: 190, pellets: 4, spread: 0.22 },
     _default: { dmg: 40, kb: 140, type: "melee" },
   };
-  // Source rects in assets/weapons/weapons.png (32px tiles). Sprites point right.
+  // Gun sprites in assets/weapons/ (one PNG each, pointing right). w = drawn width in px.
   const RANGED_SPRITES = {
-    pistol:  { x: 4, y: 1 },
-    rifle:   { x: 6, y: 0 },
-    shotgun: { x: 8, y: 0 },
+    pistol:  { file: "Desert Eagle.png", w: 18 },
+    rifle:   { file: "AK-47.png", w: 34 },
+    shotgun: { file: "Double Barrel.png", w: 36 },
   };
   const PICKUP_HEAL = 35;
   const VARIANT_STATS = {
@@ -219,8 +219,10 @@
     zVariants.forEach((v, i) => { zsheets[v] = { nofx: zimgs[2 + i * 2], full: zimgs[3 + i * 2] }; });
 
     const pRows = buildRows(pl);
-    // test ranged weapons from assets/weapons/weapons.png
-    gunSheet = await loadImage("assets/weapons/weapons.png");
+    gunSheet = {};
+    for (const [n, g] of Object.entries(RANGED_SPRITES)) {
+      gunSheet[n] = await loadImage("assets/weapons/" + encodeURIComponent(g.file));
+    }
     for (const n of Object.keys(RANGED_SPRITES)) {
       if (!weaponNames.includes(n)) weaponNames.push(n);
     }
@@ -1020,7 +1022,7 @@
   }
   function drawRangedWeapon(ox, oy) {
     const spr = RANGED_SPRITES[player.weapon];
-    const sheet = gunSheet;
+    const sheet = gunSheet && gunSheet[player.weapon];
     if (!spr || !sheet) return;
     // facing angle (sprite points right)
     const ang = { right: 0, down: Math.PI / 2, left: Math.PI, up: -Math.PI / 2 }[player.dir] || 0;
@@ -1028,8 +1030,9 @@
     ctx.save();
     ctx.translate(gripX, gripY);
     ctx.rotate(ang);
-    // draw the 32px tile, grip near left-center so barrel points forward
-    ctx.drawImage(sheet, spr.x * 32, spr.y * 32, 32, 32, -6, -16, 32, 32);
+    // grip near the left quarter so the barrel points forward
+    const dw = spr.w, dh = Math.round(sheet.height * dw / sheet.width);
+    ctx.drawImage(sheet, -Math.round(dw * 0.25), -Math.round(dh / 2), dw, dh);
     ctx.restore();
   }
   function drawWeapon(w, ox, oy) {
@@ -1314,9 +1317,10 @@
     c.width = 48; c.height = 48;
     const x = c.getContext("2d");
     x.imageSmoothingEnabled = false;
-    if (RANGED_SPRITES[name] && gunSheet) {
-      const s = RANGED_SPRITES[name];
-      x.drawImage(gunSheet, s.x * 32, s.y * 32, 32, 32, 6, 8, 36, 36);
+    if (RANGED_SPRITES[name] && gunSheet && gunSheet[name]) {
+      const g = gunSheet[name], k = Math.min(40 / g.width, 40 / g.height);
+      const w = Math.round(g.width * k), h = Math.round(g.height * k);
+      x.drawImage(g, (48 - w) >> 1, (48 - h) >> 1, w, h);
     } else if (A.p.rot[name]) {
       x.drawImage(A.p.rot[name], 0, 0, 64, 64, 4, 4, 40, 40);
     }
