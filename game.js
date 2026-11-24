@@ -8,6 +8,7 @@
   const WALK_SPEED = 72, RUN_SPEED = 140;
   const PLAYER_HP = 100, ZOMBIE_HP = 100, ZOMBIE_COUNT = 6;
   const MAX_STAMINA = 100, STAMINA_DRAIN = 35, STAMINA_REGEN = 18;
+  const SPRINT_CUTOFF = 8, SPRINT_RECOVER = 25; // hysteresis so it doesn't flicker
   const SENSE_RADIUS = 150, LOSE_TIME = 3;
   const Z_WALK = 16, Z_RUN = 50;
   const WAVE_INTERVAL = 25; // seconds between wave increases
@@ -245,7 +246,7 @@
   function resetPlayer() {
     Object.assign(player, {
       x: WORLD_W / 2, y: WORLD_H / 2 + 40, dir: "down", anim: "idle", frame: 0, t: 0,
-      hp: PLAYER_HP, stamina: MAX_STAMINA, dead: false, inv: 0, kx: 0, ky: 0, hitSet: new Set(), flash: 0,
+      hp: PLAYER_HP, stamina: MAX_STAMINA, canSprint: true, dead: false, inv: 0, kx: 0, ky: 0, hitSet: new Set(), flash: 0,
       weapon: player.weapon || A.p.weaponNames[0], queued: false,
     });
   }
@@ -279,8 +280,10 @@
     const len = Math.hypot(ix, iy);
     if (len) { ix /= len; iy /= len; }
     const wantSprint = keys.has("ShiftLeft") || keys.has("ShiftRight");
-    const canSprint = player.stamina > 8;
-    return { ix, iy, moving: len > 0, sprint: wantSprint && canSprint };
+    // hysteresis: once exhausted, must recover before sprinting again
+    if (player.stamina <= SPRINT_CUTOFF) player.canSprint = false;
+    else if (player.stamina >= SPRINT_RECOVER) player.canSprint = true;
+    return { ix, iy, moving: len > 0, sprint: wantSprint && player.canSprint };
   }
 
   function updatePlayer(dt) {
