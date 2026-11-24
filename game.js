@@ -51,6 +51,46 @@
   let nextProjectileId = 1;
   const stats = { playerHits: 0, zombieHits: 0, kills: 0, startTime: 0, wave: 1 };
   const log = [];
+  let rainDrops = [];
+  let bloodParticles = [];
+  function initRain() {
+    rainDrops = [];
+    for (let i = 0; i < 120; i++) {
+      rainDrops.push({
+        x: Math.random() * WORLD_W,
+        y: Math.random() * WORLD_H,
+        vy: 180 + Math.random() * 80,
+        len: 6 + Math.random() * 6
+      });
+    }
+  }
+  function updateRain(dt) {
+    for (const d of rainDrops) {
+      d.y += d.vy * dt;
+      d.x -= 15 * dt; // slight wind
+      if (d.y > WORLD_H) { d.y = -10; d.x = Math.random() * WORLD_W; }
+      if (d.x < 0) d.x += WORLD_W;
+    }
+  }
+  function updateBlood(dt) {
+    for (let i = bloodParticles.length - 1; i >= 0; i--) {
+      const b = bloodParticles[i];
+      b.x += b.vx * dt; b.y += b.vy * dt;
+      b.life -= dt; b.vy += 40 * dt;
+      if (b.life <= 0) bloodParticles.splice(i, 1);
+    }
+  }
+  function spawnBlood(x, y, count = 5) {
+    for (let i = 0; i < count; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = 30 + Math.random() * 50;
+      bloodParticles.push({
+        x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 20,
+        life: 0.4 + Math.random() * 0.4, size: 1 + Math.random() * 1.5
+      });
+    }
+  }
+  initRain();
 
   // ---------- helpers ----------
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -261,24 +301,56 @@
     return { x: 40, y: 60 };
   }
 
-  // ---------- audio (Kenney CC0) ----------
+  // ---------- audio (realistic CC0 / free-for-commercial) ----------
   const SFX = {};
+  let footLoop = null, rainLoop = null;
   function loadSfx() {
-    const names = ["step", "step2", "swing", "hit", "shot", "pickup"];
-    for (const n of names) {
-      const a = new Audio(`assets/audio/${n}.ogg`);
+    const map = {
+      step: "assets/audio/step.ogg",           // fallback short
+      step2: "assets/audio/step2.ogg",
+      swing: "assets/audio/realistic/sword_whoosh.mp3",
+      knife: "assets/audio/realistic/knife_noise.mp3",
+      hit: "assets/audio/realistic/sword_impact.mp3",
+      punch: "assets/audio/realistic/punching.mp3",
+      shot: "assets/audio/realistic/handgun_50cal.mp3",
+      shot2: "assets/audio/realistic/ar15_gunfire.mp3",
+      shell: "assets/audio/realistic/shell_drop.mp3",
+      blood: "assets/audio/realistic/blood_squelch.mp3",
+      pickup: "assets/audio/pickup.ogg",
+      hurt: "assets/audio/realistic/agony_yell.mp3",
+      foot: "assets/audio/realistic/footsteps_grass.mp3",
+      rain: "assets/audio/realistic/rain_ambient.mp3",
+    };
+    for (const [k, src] of Object.entries(map)) {
+      const a = new Audio(src);
       a.preload = "auto";
-      a.volume = (n === "step" || n === "step2") ? 0.32 : 0.55;
-      SFX[n] = a;
+      a.volume = 0.55;
+      if (k === "foot" || k === "rain") a.loop = true;
+      SFX[k] = a;
     }
+    // start soft rain ambience
+    rainLoop = SFX.rain;
+    rainLoop.volume = 0.22;
+    rainLoop.play().catch(() => {});
   }
   function play(name, vol = 1, rate = 1) {
     const a = SFX[name];
     if (!a) return;
     const c = a.cloneNode();
-    c.volume = Math.min(1, (a.volume || 0.5) * vol);
+    c.volume = Math.min(1, (a.volume || 0.55) * vol);
     c.playbackRate = rate;
     c.play().catch(() => {});
+    return c;
+  }
+  function setFootsteps(on, sprint) {
+    if (!footLoop) footLoop = SFX.foot;
+    if (on) {
+      if (footLoop.paused) footLoop.play().catch(() => {});
+      footLoop.volume = sprint ? 0.38 : 0.28;
+      footLoop.playbackRate = sprint ? 1.25 : 1.0;
+    } else {
+      if (!footLoop.paused) footLoop.pause();
+    }
   }
   loadSfx();
 
@@ -316,14 +388,15 @@
         life: 1.2
       });
       player.shootCd = ws.cooldown || 0.3;
-      play("shot", 0.7, 0.95 + Math.random() * 0.1);
+      play(Math.random() < 0.6 ? "shot" : "shot2", 0.75, 0.92 + Math.random() * 0.12);
+      setTimeout(() => play("shell", 0.45, 0.9 + Math.random() * 0.2), 180 + Math.random()*80);
       log.push({ t: time, ev: "shoot", weapon: player.weapon });
       return;
     }
     if (player.anim === ATTACK) return;
     if (faceX !== undefined) player.dir = dirFromVec(faceX, faceY, player.dir);
     setPlayerAnim(ATTACK);
-    play("swing", 0.6, 0.9 + Math.random() * 0.2);
+    play(Math.random() < 0.7 ? "swing" : "knife", 0.65, 0.88 + Math.random() * 0.24);
   }
   function setWeapon(name) {
     if (name !== "pistol" && !A.p.weapons.weapons[name]) return;
@@ -367,7 +440,7 @@
       const k = Math.exp(-10 * dt); p.kx *= k; p.ky *= k;
       if (Math.hypot(p.kx, p.ky) < 2) p.kx = p.ky = 0;
     }
-    if (p.dead) return;
+    if (p.dead) { setFootsteps(false); return; }
     p.shootCd = Math.max(0, (p.shootCd || 0) - dt);
     if (p.anim !== ATTACK) {
       setPlayerAnim(!moving ? "idle" : sprint ? "run" : "walk");
@@ -375,14 +448,12 @@
         p.dir = dirFromVec(ix, iy, p.dir);
         const sp = sprint ? RUN_SPEED : WALK_SPEED;
         moveWithCollision(p, P.foot, ix * sp * dt, iy * sp * dt);
-        // footsteps
-        p.stepT = (p.stepT || 0) + dt;
-        const stepInterval = sprint ? 0.22 : 0.38;
-        if (p.stepT >= stepInterval) {
-          p.stepT = 0;
-          play(Math.random() < 0.5 ? "step" : "step2", 0.8, sprint ? 1.15 : 0.95);
-        }
-      } else p.stepT = 0;
+        // realistic continuous footsteps
+        setFootsteps(true, sprint);
+      } else {
+        setFootsteps(false);
+        p.stepT = 0;
+      }
     } else if (moving) {
       // tiny drift while swinging keeps it responsive without sliding
       moveWithCollision(p, P.foot, ix * 18 * dt, iy * 18 * dt);
@@ -412,7 +483,9 @@
               const ws = WEAPON_STATS[p.weapon] || WEAPON_STATS._default;
               z.takeHit(ws.dmg, ws.kb, p.x, p.y);
               stats.playerHits++;
-              play("hit", 0.65, 0.85 + Math.random() * 0.3);
+              play(Math.random() < 0.5 ? "hit" : "punch", 0.7, 0.85 + Math.random() * 0.3);
+              play("blood", 0.35, 0.9 + Math.random() * 0.2);
+              spawnBlood(z.x, z.y - 10, 4);
               log.push({ t: time, ev: "playerHit", zombie: z.id, weapon: p.weapon, frame: p.frame });
             }
           }
@@ -432,7 +505,9 @@
         if (rectsOverlap([pr.x - 3, pr.y - 3, 6, 6], bodyRect(z))) {
           z.takeHit(pr.dmg, pr.kb, pr.x, pr.y);
           stats.playerHits++;
-          play("hit", 0.5, 1.1 + Math.random() * 0.2);
+          play("punch", 0.55, 1.05 + Math.random() * 0.15);
+          play("blood", 0.4, 0.95 + Math.random() * 0.15);
+          spawnBlood(z.x, z.y - 8, 3);
           pr.life = 0;
           log.push({ t: time, ev: "bulletHit", zombie: z.id });
           break;
@@ -475,7 +550,7 @@
     const dx = p.x - fromX, dy = p.y - fromY, d = Math.hypot(dx, dy) || 1;
     p.kx = (dx / d) * 160; p.ky = (dy / d) * 160;
     stats.zombieHits++;
-    play("hit", 0.8, 0.7);
+    play("hurt", 0.6, 0.85 + Math.random() * 0.2);
     if (p.hp <= 0) {
       p.dead = true; setPlayerAnim("idle");
       const survived = Math.floor(time);
@@ -832,6 +907,36 @@
       ctx.fillRect(x - 1, y - 3 + bob, 2, 6);
       ctx.fillRect(x - 3, y - 1 + bob, 6, 2);
     }
+    // rain
+    ctx.strokeStyle = "rgba(180,200,220,0.35)";
+    ctx.lineWidth = 1;
+    for (const d of rainDrops) {
+      const x = d.x - camX, y = d.y - camY;
+      if (x > -10 && x < viewW + 10 && y > -10 && y < viewH + 10) {
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x - 1, y + d.len);
+        ctx.stroke();
+      }
+    }
+    // blood particles
+    for (const b of bloodParticles) {
+      const x = b.x - camX, y = b.y - camY;
+      ctx.globalAlpha = Math.max(0, b.life * 2);
+      ctx.fillStyle = "#8b1e1e";
+      ctx.fillRect(x, y, b.size, b.size);
+    }
+    ctx.globalAlpha = 1;
+    // atmospheric fog / vignette
+    const fog = ctx.createRadialGradient(viewW/2, viewH/2, viewW*0.25, viewW/2, viewH/2, viewW*0.75);
+    fog.addColorStop(0, "rgba(80,90,100,0.0)");
+    fog.addColorStop(0.6, "rgba(60,70,80,0.08)");
+    fog.addColorStop(1, "rgba(40,50,60,0.22)");
+    ctx.fillStyle = fog;
+    ctx.fillRect(0, 0, viewW, viewH);
+    // light rain mist overlay
+    ctx.fillStyle = "rgba(140,160,180,0.06)";
+    ctx.fillRect(0, 0, viewW, viewH);
   }
 
   // ---------- loop ----------
@@ -841,6 +946,8 @@
     updatePlayer(dt);
     updateProjectiles(dt);
     updatePickups(dt);
+    updateRain(dt);
+    updateBlood(dt);
     for (const z of zombies) z.update(dt);
     resolveOverlaps();
     const before = zombies.length;
