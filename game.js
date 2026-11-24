@@ -630,6 +630,7 @@
       this.state = "wander"; this.stateT = 0; this.alpha = 1;
       this.target = null; this.pause = rand(0.5, 2);
       this.lastSeen = null; this.lostT = 0; this.dealt = false; this.cooldown = 0; this.groanT = rand(2, 6); this.noticeMark = 0;
+      this.screamAudio = null;
     }
     hittable() {
       return this.state !== "death" && this.state !== "decay" && this.state !== "fade" && A.z.hurtActive[this.anim] !== false;
@@ -640,6 +641,10 @@
     }
     setState(s) {
       if (this.state !== s) log.push({ t: time, ev: "zstate", zombie: this.id, from: this.state, to: s });
+      if ((s === "death" || s === "decay" || s === "fade") && this.screamAudio) {
+        try { this.screamAudio.pause(); this.screamAudio.currentTime = 0; } catch (e) {}
+        this.screamAudio = null;
+      }
       this.state = s; this.stateT = 0;
     }
     takeHit(dmg, kb, fx, fy, isHead) {
@@ -661,7 +666,9 @@
       this.dir = dirFromVec(-dx, -dy, this.dir); // face the attacker
       this.lastSeen = { x: player.x, y: player.y };
       if (this.hp <= 0) {
-        this.setState("death"); this.setAnim("death"); stats.kills++; playSpatial(["hit","hit2","hit3"][(Math.random()*3)|0], this.x, this.y, 0.55, 0.85 + Math.random() * 0.2);
+        this.setState("death"); this.setAnim("death"); stats.kills++;
+        if (this.screamAudio) { try { this.screamAudio.pause(); this.screamAudio.currentTime = 0; } catch (e) {} this.screamAudio = null; }
+        playSpatial(["hit","hit2","hit3"][(Math.random()*3)|0], this.x, this.y, 0.55, 0.85 + Math.random() * 0.2);
         if (Math.random() < this.dropChance && pickups.length < 5) {
           pickups.push({ x: this.x, y: this.y, type: "health", t: 0 });
         }
@@ -734,7 +741,7 @@
           if (sees) {
             this.setState("sense"); this.setAnim("sense");
             this.noticeMark = 1.4;
-            playSpatial("zombie_scream", this.x, this.y, 0.85, 0.92 + Math.random() * 0.16);
+            this.screamAudio = playSpatial("zombie_scream", this.x, this.y, 0.38, 0.92 + Math.random() * 0.16);
             break;
           }
           if (this.pause > 0) {
