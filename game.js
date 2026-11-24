@@ -145,8 +145,9 @@
     zVariants.forEach((v, i) => { zsheets[v] = { nofx: zimgs[2 + i * 2], full: zimgs[3 + i * 2] }; });
 
     const pRows = buildRows(pl);
-    // inject ranged weapon (no sprite sheet needed)
+    // inject ranged weapon using pipe rotation sheet as a stand-in gun
     if (!weaponNames.includes("pistol")) weaponNames.push("pistol");
+    if (rot.pipe && !rot.pistol) rot.pistol = rot.pipe;
     if (!pRows[ATTACK + "_down"]) throw new Error("player layout.json has no " + ATTACK + " rows");
     const pAnims = {};
     for (const anim of new Set(pl.rows.map((r) => r.anim))) {
@@ -270,12 +271,15 @@
     if (ws.type === "ranged") {
       if (player.anim === ATTACK || (player.shootCd || 0) > 0) return;
       if (faceX !== undefined) player.dir = dirFromVec(faceX, faceY, player.dir);
-      // fire projectile
+      // fire from weapon tip (roughly hand position)
       const angle = Math.atan2(faceY || 0, faceX || 1);
+      const tipDist = 18;
+      const sx = player.x + Math.cos(angle) * tipDist;
+      const sy = player.y - 10 + Math.sin(angle) * tipDist;
       const speed = ws.speed || 400;
       projectiles.push({
         id: nextProjectileId++,
-        x: player.x, y: player.y - 8,
+        x: sx, y: sy,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
         dmg: ws.dmg, kb: ws.kb, range: ws.range || 250, dist: 0,
@@ -382,10 +386,13 @@
       pr.y += pr.vy * dt;
       pr.dist += Math.hypot(pr.vx, pr.vy) * dt;
       pr.life -= dt;
-      // hit zombies
+      // hit zombies (generous hitbox so small bullets connect)
       for (const z of zombies) {
         if (!z.hittable()) continue;
-        if (rectsOverlap([pr.x - 3, pr.y - 3, 6, 6], footRect(z, A.z.foot))) {
+        const zr = footRect(z, A.z.foot);
+        // expand a bit for reliability
+        const box = [zr[0] - 6, zr[1] - 10, zr[2] + 12, zr[3] + 14];
+        if (rectsOverlap([pr.x - 4, pr.y - 4, 8, 8], box)) {
           z.takeHit(pr.dmg, pr.kb, pr.x, pr.y);
           stats.playerHits++;
           pr.life = 0;
@@ -768,10 +775,12 @@
     for (const it of items) it.f();
     if (debug) drawDebug();
     // projectiles
-    ctx.fillStyle = "#f0e6a0";
     for (const pr of projectiles) {
       const x = Math.round(pr.x - camX), y = Math.round(pr.y - camY);
-      ctx.fillRect(x - 1, y - 1, 3, 3);
+      ctx.fillStyle = "#f5e7a0";
+      ctx.fillRect(x - 2, y - 1, 4, 2);
+      ctx.fillStyle = "#fff8c0";
+      ctx.fillRect(x - 1, y - 0.5, 2, 1);
     }
     // pickups
     for (const pk of pickups) {
