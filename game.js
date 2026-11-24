@@ -551,7 +551,7 @@
       if (!pr.trail) pr.trail = [];
       pr.trail.push({ x: pr.x, y: pr.y, t: 0 });
       for (const p of pr.trail) p.t += dt;
-      pr.trail = pr.trail.filter((p) => p.t < 0.28);
+      pr.trail = pr.trail.filter((p) => p.t < 0.10);
       pr.x += pr.vx * dt;
       pr.y += pr.vy * dt;
       pr.dist += Math.hypot(pr.vx, pr.vy) * dt;
@@ -1003,32 +1003,26 @@
     if (debug) drawDebug();
     // projectiles: 2px blazing hot flash + visible smoke trail
     for (const pr of projectiles) {
-      // smoke trail (hot orange fading to gray, longer)
+      // dark smoke trail that evaporates quickly
       if (pr.trail) {
         for (const p of pr.trail) {
-          const a = 1 - p.t / 0.28;
+          const a = 1 - p.t / 0.10;
+          if (a <= 0) continue;
           const x = Math.round(p.x - camX), y = Math.round(p.y - camY);
-          // hotter near the tip, cooler/grayer farther back
-          const hot = a > 0.55;
-          if (hot) {
-            ctx.fillStyle = `rgba(255,140,40,${(a * 0.55).toFixed(3)})`;
-            ctx.fillRect(x - 1, y - 1, 3, 3);
+          ctx.fillStyle = `rgba(40,40,42,${(a * 0.55).toFixed(3)})`;
+          ctx.fillRect(x, y, 1, 1);
+          if (a > 0.4) {
+            ctx.fillStyle = `rgba(20,20,22,${(a * 0.35).toFixed(3)})`;
+            ctx.fillRect(x + 1, y, 1, 1);
           }
-          ctx.fillStyle = `rgba(${hot ? 200 : 120},${hot ? 120 : 110},${hot ? 80 : 90},${(a * 0.4).toFixed(3)})`;
-          ctx.fillRect(x, y, 2, 2);
         }
       }
-      // blazing hot 2px core + glow
+      // small 2px hot tip (no large glow)
       const x = Math.round(pr.x - camX), y = Math.round(pr.y - camY);
-      // outer glow
-      ctx.fillStyle = "rgba(255,180,60,0.55)";
-      ctx.fillRect(x - 2, y - 2, 6, 6);
-      // mid orange
-      ctx.fillStyle = "#ffaa22";
-      ctx.fillRect(x - 1, y - 1, 4, 4);
-      // white-hot core (2px)
-      ctx.fillStyle = "#fff8e0";
+      ctx.fillStyle = "#ffe8a0";
       ctx.fillRect(x, y, 2, 2);
+      ctx.fillStyle = "#fffef5";
+      ctx.fillRect(x, y, 1, 1);
     }
     // pickups
     for (const pk of pickups) {
