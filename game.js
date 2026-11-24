@@ -369,56 +369,145 @@
     }
     rainLoop = SFX.rain;
     rainLoop.volume = 0.18;
-    rainLoop.play().catch(() => {});
+    // routed on first user gesture via ensureAudioCtx callers
   }
   let actx = null;
+  let masterGain = null, dryGain = null, echoDelay = null, echoFeedback = null, echoWet = null, shockFilter = null;
+  let audioMuted = false;
+  const liveAudio = new Set();
   function ensureAudioCtx() {
     if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
     if (actx.state === "suspended") actx.resume().catch(() => {});
+    if (!masterGain && actx) {
+      masterGain = actx.createGain();
+      dryGain = actx.createGain();
+      echoDelay = actx.createDelay(1.2);
+      echoDelay.delayTime.value = 0.09;
+      echoFeedback = actx.createGain();
+      echoFeedback.gain.value = 0;
+      echoWet = actx.createGain();
+      echoWet.gain.value = 0;
+      shockFilter = actx.createBiquadFilter();
+      shockFilter.type = "lowpass";
+      shockFilter.frequency.value = 18000;
+      dryGain.connect(shockFilter);
+      shockFilter.connect(masterGain);
+      dryGain.connect(echoDelay);
+      echoDelay.connect(echoFeedback);
+      echoFeedback.connect(echoDelay);
+      echoDelay.connect(echoWet);
+      echoWet.connect(masterGain);
+      masterGain.connect(actx.destination);
+    }
     return actx;
   }
+  function routeAudio(el) {
+    ensureAudioCtx();
+    try {
+      const src = actx.createMediaElementSource(el);
+      src.connect(dryGain);
+    } catch (e) { /* already routed or unsupported */ }
+    liveAudio.add(el);
+    el.addEventListener("ended", () => liveAudio.delete(el), { once: true });
+  }
   function play(name, vol = 1, rate = 1) {
+    if (audioMuted) return;
     const a = SFX[name];
     if (!a) return;
     const c = a.cloneNode();
     c.volume = Math.min(1, (a.volume || 0.6) * vol);
     c.playbackRate = rate;
+    routeAudio(c);
     c.play().catch(() => {});
     return c;
   }
   // Distance-based volume + left/right pan. Far = quiet, close = loud.
   function playSpatial(name, x, y, vol = 1, rate = 1) {
+    if (audioMuted) return;
     const a = SFX[name];
     if (!a) return;
     const dx = x - player.x, dy = y - player.y;
     const d = Math.hypot(dx, dy);
     const maxDist = 460;
     if (d >= maxDist) return;
-    const atten = Math.pow(1 - d / maxDist, 1.55); // steeper falloff
+    const atten = Math.pow(1 - d / maxDist, 1.55);
     if (atten < 0.04) return;
     const c = a.cloneNode();
     c.volume = Math.min(1, (a.volume || 0.6) * vol * atten);
     c.playbackRate = rate;
-    // stereo pan based on horizontal offset (only if audio context is already running)
+    ensureAudioCtx();
     try {
-      const ctx = ensureAudioCtx();
-      if (ctx.state === "running") {
-        const src = ctx.createMediaElementSource(c);
-        const pan = ctx.createStereoPanner();
+      const src = actx.createMediaElementSource(c);
+      if (actx.state === "running") {
+        const pan = actx.createStereoPanner();
         pan.pan.value = Math.max(-1, Math.min(1, dx / 200));
         src.connect(pan);
-        pan.connect(ctx.destination);
+        pan.connect(dryGain);
+      } else {
+        src.connect(dryGain);
       }
     } catch (e) { /* volume-only fallback */ }
+    liveAudio.add(c);
+    c.addEventListener("ended", () => liveAudio.delete(c), { once: true });
     c.play().catch(() => {});
     return c;
+  }
+  function audioShockwave() {
+    ensureAudioCtx();
+    if (!masterGain) return;
+    const now = actx.currentTime;
+    audioMuted = true;
+    // sudden echo, then the world flattens and dies with the visual shockwave
+    echoFeedback.gain.cancelScheduledValues(now);
+    echoWet.gain.cancelScheduledValues(now);
+    echoFeedback.gain.setValueAtTime(0.62, now);
+    echoWet.gain.setValueAtTime(0.85, now);
+    shockFilter.frequency.cancelScheduledValues(now);
+    shockFilter.frequency.setValueAtTime(16000, now);
+    shockFilter.frequency.exponentialRampToValueAtTime(280, now + 0.4);
+    masterGain.gain.cancelScheduledValues(now);
+    masterGain.gain.setValueAtTime(masterGain.gain.value || 1, now);
+    masterGain.gain.linearRampToValueAtTime(0.001, now + 0.48);
+    setTimeout(() => {
+      if (!audioMuted) return;
+      if (footLoop && !footLoop.paused) footLoop.pause();
+      if (rainLoop && !rainLoop.paused) rainLoop.pause();
+      for (const a of liveAudio) { try { a.pause(); } catch (e) {} }
+      liveAudio.clear();
+    }, 500);
+  }
+  function audioResume() {
+    if (!actx || !masterGain) return;
+    const now = actx.currentTime;
+    audioMuted = false;
+    echoFeedback.gain.cancelScheduledValues(now);
+    echoWet.gain.cancelScheduledValues(now);
+    echoFeedback.gain.setValueAtTime(0, now);
+    echoWet.gain.setValueAtTime(0, now);
+    shockFilter.frequency.cancelScheduledValues(now);
+    shockFilter.frequency.setValueAtTime(18000, now);
+    masterGain.gain.cancelScheduledValues(now);
+    masterGain.gain.setValueAtTime(0.001, now);
+    masterGain.gain.linearRampToValueAtTime(1, now + 0.18);
+    if (rainLoop) { rainLoop.volume = 0.18; rainLoop.play().catch(() => {}); }
   }
   function playHit(vol = 0.7) {
     const names = ["hit", "hit2", "hit3"];
     play(names[(Math.random() * names.length) | 0], vol, 0.9 + Math.random() * 0.2);
   }
-  function setFootsteps(on, sprint) {
+  let loopsRouted = false;
+  function routeLoops() {
+    if (loopsRouted) return;
+    ensureAudioCtx();
     if (!footLoop) footLoop = SFX.walking;
+    try { actx.createMediaElementSource(footLoop).connect(dryGain); } catch (e) {}
+    try { actx.createMediaElementSource(rainLoop).connect(dryGain); } catch (e) {}
+    loopsRouted = true;
+  }
+  function setFootsteps(on, sprint) {
+    if (audioMuted) return;
+    if (!footLoop) footLoop = SFX.walking;
+    routeLoops();
     if (on) {
       if (footLoop.paused) footLoop.play().catch(() => {});
       footLoop.volume = sprint ? 0.42 : 0.3;
@@ -1300,12 +1389,16 @@
     banner.style.display = "none";
     resetWorld();
     started = true;
+    audioResume();
+    routeLoops();
+    if (rainLoop && rainLoop.paused) rainLoop.play().catch(() => {});
     uiState = "playing";
     setHud(true);
     refreshWeaponUI();
   }
   function beginPause() {
     if (uiState !== "playing") return;
+    audioShockwave();
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduce) {
       uiState = "paused";
@@ -1319,12 +1412,14 @@
   }
   function resumeGame() {
     hideOverlays();
+    audioResume();
     uiState = "playing";
     setHud(true);
   }
   function leaveToMenu() {
     hideOverlays();
     banner.style.display = "none";
+    if (!audioMuted) audioShockwave();
     uiState = "menu";
     setHud(false);
     showOverlay(startMenu);
