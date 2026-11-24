@@ -15,10 +15,14 @@
   const KILLS_PER_WAVE = 8;
   // Gameplay tuning per weapon (art/boxes come from JSON; unknown weapons get the default).
   const WEAPON_STATS = {
-    bat: { dmg: 34, kb: 150 }, bat_nails: { dmg: 50, kb: 140 },
-    pipe: { dmg: 40, kb: 170 }, machete: { dmg: 60, kb: 110 },
-    _default: { dmg: 40, kb: 140 },
+    bat: { dmg: 34, kb: 150, type: "melee" },
+    bat_nails: { dmg: 50, kb: 140, type: "melee" },
+    pipe: { dmg: 40, kb: 170, type: "melee" },
+    machete: { dmg: 60, kb: 110, type: "melee" },
+    pistol: { dmg: 28, kb: 60, type: "ranged", cooldown: 0.28, speed: 420, range: 280 },
+    _default: { dmg: 40, kb: 140, type: "melee" },
   };
+  const PICKUP_HEAL = 35;
   // Obstacles (minimal; they exist so line of sight means something).
   const WALLS = [
     [300, 220, 96, 24], [600, 160, 24, 120], [420, 470, 140, 24],
@@ -41,7 +45,10 @@
   let mouse = { x: 0, y: 0 };
   const player = {};
   let zombies = [];
+  let projectiles = [];
+  let pickups = [];
   let nextZombieId = 1;
+  let nextProjectileId = 1;
   const stats = { playerHits: 0, zombieHits: 0, kills: 0, startTime: 0, wave: 1 };
   const log = [];
 
@@ -138,6 +145,8 @@
     zVariants.forEach((v, i) => { zsheets[v] = { nofx: zimgs[2 + i * 2], full: zimgs[3 + i * 2] }; });
 
     const pRows = buildRows(pl);
+    // inject ranged weapon (no sprite sheet needed)
+    if (!weaponNames.includes("pistol")) weaponNames.push("pistol");
     if (!pRows[ATTACK + "_down"]) throw new Error("player layout.json has no " + ATTACK + " rows");
     const pAnims = {};
     for (const anim of new Set(pl.rows.map((r) => r.anim))) {
@@ -256,12 +265,32 @@
     if (anim === ATTACK) player.hitSet = new Set();
   }
   function startAttack(faceX, faceY) {
-    if (player.dead || player.anim === ATTACK) return;
+    if (player.dead) return;
+    const ws = WEAPON_STATS[player.weapon] || WEAPON_STATS._default;
+    if (ws.type === "ranged") {
+      if (player.anim === ATTACK || (player.shootCd || 0) > 0) return;
+      if (faceX !== undefined) player.dir = dirFromVec(faceX, faceY, player.dir);
+      // fire projectile
+      const angle = Math.atan2(faceY || 0, faceX || 1);
+      const speed = ws.speed || 400;
+      projectiles.push({
+        id: nextProjectileId++,
+        x: player.x, y: player.y - 8,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        dmg: ws.dmg, kb: ws.kb, range: ws.range || 250, dist: 0,
+        life: 1.2
+      });
+      player.shootCd = ws.cooldown || 0.3;
+      log.push({ t: time, ev: "shoot", weapon: player.weapon });
+      return;
+    }
+    if (player.anim === ATTACK) return;
     if (faceX !== undefined) player.dir = dirFromVec(faceX, faceY, player.dir);
     setPlayerAnim(ATTACK);
   }
   function setWeapon(name) {
-    if (!A.p.weapons.weapons[name]) return;
+    if (name !== "pistol" && !A.p.weapons.weapons[name]) return;
     player.weapon = name;
     weaponLabel.textContent = name.replace("_", " ");
     log.push({ t: time, ev: "weapon", name });
@@ -303,6 +332,7 @@
       if (Math.hypot(p.kx, p.ky) < 2) p.kx = p.ky = 0;
     }
     if (p.dead) return;
+    p.shootCd = Math.max(0, (p.shootCd || 0) - dt);
     if (p.anim !== ATTACK) {
       setPlayerAnim(!moving ? "idle" : sprint ? "run" : "walk");
       if (moving) {
@@ -346,6 +376,51 @@
       }
     }
   }
+  function updateProjectiles(dt) {
+    for (const pr of projectiles) {
+      pr.x += pr.vx * dt;
+      pr.y += pr.vy * dt;
+      pr.dist += Math.hypot(pr.vx, pr.vy) * dt;
+      pr.life -= dt;
+      // hit zombies
+      for (const z of zombies) {
+        if (!z.hittable()) continue;
+        if (rectsOverlap([pr.x - 3, pr.y - 3, 6, 6], footRect(z, A.z.foot))) {
+          z.takeHit(pr.dmg, pr.kb, pr.x, pr.y);
+          stats.playerHits++;
+          pr.life = 0;
+          log.push({ t: time, ev: "bulletHit", zombie: z.id });
+          break;
+        }
+      }
+    }
+    projectiles = projectiles.filter((pr) => pr.life > 0 && pr.dist < pr.range &&
+      pr.x > -20 && pr.x < WORLD_W + 20 && pr.y > -20 && pr.y < WORLD_H + 20);
+  }
+
+  function spawnPickup() {
+    if (pickups.length >= 3) return;
+    const s = freeSpot(A.p.foot, player.x, player.y, 120);
+    pickups.push({ x: s.x, y: s.y, type: "health", t: 0 });
+  }
+
+  function updatePickups(dt) {
+    for (const pk of pickups) pk.t += dt;
+    // collect
+    for (let i = pickups.length - 1; i >= 0; i--) {
+      const pk = pickups[i];
+      if (Math.hypot(pk.x - player.x, pk.y - player.y) < 16 && !player.dead) {
+        if (pk.type === "health") {
+          player.hp = Math.min(PLAYER_HP, player.hp + PICKUP_HEAL);
+          log.push({ t: time, ev: "pickup", type: "health" });
+        }
+        pickups.splice(i, 1);
+      }
+    }
+    // occasional spawn
+    if (Math.random() < 0.004 * dt * 60) spawnPickup();
+  }
+
   function damagePlayer(dmg, fromX, fromY) {
     const p = player;
     if (p.dead || p.inv > 0) return false;
@@ -528,6 +603,8 @@
   function resetWorld() {
     resetPlayer();
     zombies = [];
+    projectiles = [];
+    pickups = [];
     stats.kills = 0;
     stats.wave = 1;
     stats.startTime = performance.now() / 1000;
@@ -689,6 +766,22 @@
     items.sort((a, b) => a.y - b.y);
     for (const it of items) it.f();
     if (debug) drawDebug();
+    // projectiles
+    ctx.fillStyle = "#f0e6a0";
+    for (const pr of projectiles) {
+      const x = Math.round(pr.x - camX), y = Math.round(pr.y - camY);
+      ctx.fillRect(x - 1, y - 1, 3, 3);
+    }
+    // pickups
+    for (const pk of pickups) {
+      const x = Math.round(pk.x - camX), y = Math.round(pk.y - camY);
+      const bob = Math.sin(pk.t * 4) * 1.5;
+      ctx.fillStyle = "#5cdb6e";
+      ctx.fillRect(x - 4, y - 4 + bob, 8, 8);
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(x - 1, y - 3 + bob, 2, 6);
+      ctx.fillRect(x - 3, y - 1 + bob, 6, 2);
+    }
   }
 
   // ---------- loop ----------
@@ -696,6 +789,8 @@
     const dt = Math.min(0.05, (now - last) / 1000 || 0);
     last = now; time += dt;
     updatePlayer(dt);
+    updateProjectiles(dt);
+    updatePickups(dt);
     for (const z of zombies) z.update(dt);
     resolveOverlaps();
     const before = zombies.length;
