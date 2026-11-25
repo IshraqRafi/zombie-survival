@@ -261,7 +261,7 @@
       attack: ["Dash", "Dash"],
       death: ["Death", "death"],
     };
-    const female = { frame: 64, frames: 6, dirs: fDirs, sheets: {} };
+    const female = { frames: 8, dirs: fDirs, sheets: {} };
     const fLoads = [];
     const fKeys = [];
     for (const [anim, [folder, base]] of Object.entries(fAnims)) {
@@ -273,7 +273,16 @@
       }
     }
     const fImgs = await Promise.all(fLoads);
-    fKeys.forEach(([anim, d], i) => { female.sheets[anim][d] = fImgs[i]; });
+    fKeys.forEach(([anim, d], i) => {
+      const img = fImgs[i];
+      const frames = female.frames;
+      female.sheets[anim][d] = {
+        img,
+        frames,
+        cellW: img.width / frames,
+        cellH: img.height,
+      };
+    });
 
     // new zombies: side-view 128x128 sheets
     const nzVariants = ["Zombie_2", "Zombie_3", "Zombie_4"];
@@ -677,8 +686,8 @@
       // tiny drift while swinging keeps it responsive without sliding
       moveWithCollision(p, P.foot, ix * 18 * dt, iy * 18 * dt);
     }
-    // advance the female sheet: exactly 6 frames, 64x64 each
-    const FEMALE_FRAMES = 6;
+    // advance the female sheet: frame count from the strip, cell = width / frames
+    const FEMALE_FRAMES = A.female.frames;
     const frameMs = p.anim === ATTACK ? 70 : (p.anim === "run" ? 80 : 110);
     p.t += dt * 1000;
     while (p.t >= frameMs) {
@@ -1052,14 +1061,16 @@
     const anim = p.dead ? "death" : (p.anim === ATTACK ? "attack" : (p.anim === "run" ? "run" : (p.anim === "walk" ? "walk" : "idle")));
     const sheet = F.sheets[anim] || F.sheets.idle;
     const dir = femaleDir(p);
-    const img = sheet[dir] || sheet.Down;
-    const frame = Math.max(0, Math.min(F.frames - 1, p.frame | 0));
-    const ox = Math.round(p.x - 32 - camX), oy = Math.round(p.y - 52 - camY);
+    const cell = sheet[dir] || sheet.Down;
+    const frames = cell.frames;
+    const frame = Math.max(0, Math.min(frames - 1, p.frame | 0));
+    const cw = cell.cellW;   // width / frame count
+    const ch = cell.cellH;
+    const ox = Math.round(p.x - cw / 2 - camX), oy = Math.round(p.y - ch + 12 - camY);
     ctx.save();
     if (p.dead) ctx.globalAlpha = 0.45;
     else if (p.flash > 0 && Math.floor(p.flash * 30) % 2 === 0) ctx.globalAlpha = 0.55;
-    // cut exactly one 64x64 cell, then the next, never a partial
-    ctx.drawImage(img, frame * 64, 0, 64, 64, ox, oy, 64, 64);
+    ctx.drawImage(cell.img, frame * cw, 0, cw, ch, ox, oy, cw, ch);
     ctx.restore();
   }
   // Outside of the swing, carry the weapon low at the hand anchor from layout.json.
