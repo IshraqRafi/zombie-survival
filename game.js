@@ -32,8 +32,11 @@
   };
   const PICKUP_HEAL = 35;
   const VARIANT_STATS = {
-    zombie_1: { hp: 100, speed: 1.0, dropChance: 0.25 },  // normal
-    zombie_2: { hp: 70, speed: 1.35, dropChance: 0.15 },   // fast runner
+    Zombie_2: { hp: 110, speed: 1.0, dropChance: 0.25 },
+    Zombie_3: { hp: 80, speed: 1.3, dropChance: 0.18 },
+    Zombie_4: { hp: 160, speed: 0.85, dropChance: 0.3 },
+    zombie_1: { hp: 100, speed: 1.0, dropChance: 0.25 },
+    zombie_2: { hp: 70, speed: 1.35, dropChance: 0.15 },
     _default: { hp: 100, speed: 1.0, dropChance: 0.2 },
   };
   const MAX_AMMO = 24;
@@ -219,13 +222,8 @@
     zVariants.forEach((v, i) => { zsheets[v] = { nofx: zimgs[2 + i * 2], full: zimgs[3 + i * 2] }; });
 
     const pRows = buildRows(pl);
-    gunSheet = {};
-    for (const [n, g] of Object.entries(RANGED_SPRITES)) {
-      gunSheet[n] = await loadImage("assets/weapons/" + encodeURIComponent(g.file));
-    }
-    for (const n of Object.keys(RANGED_SPRITES)) {
-      if (!weaponNames.includes(n)) weaponNames.push(n);
-    }
+    // guns removed — character uses her own baked weapon/dash animation
+    gunSheet = null;
     if (!pRows[ATTACK + "_down"]) throw new Error("player layout.json has no " + ATTACK + " rows");
     const pAnims = {};
     for (const anim of new Set(pl.rows.map((r) => r.anim))) {
@@ -254,12 +252,57 @@
     const zAttack = {};
     for (const d of DIRS) zAttack[d] = (zh.attacks["attack_" + d] || []).map((f) => ({ active: !!f.active, reach: f.reach, kind: f.kind }));
 
+    // female character: 64x64, 6 frames, 6 directions
+    const fDirs = ["Down", "Up", "Left_Down", "Left_Up", "Right_Down", "Right_Up"];
+    const fAnims = {
+      idle: ["Idle", "Idle"],
+      walk: ["Walk", "walk"],
+      run: ["Walk", "walk"],
+      attack: ["Dash", "Dash"],
+      death: ["Death", "death"],
+    };
+    const female = { frame: 64, frames: 6, dirs: fDirs, sheets: {} };
+    const fLoads = [];
+    const fKeys = [];
+    for (const [anim, [folder, base]] of Object.entries(fAnims)) {
+      female.sheets[anim] = {};
+      for (const d of fDirs) {
+        const file = `assets/female_character/${folder}/${base}_${d}.png`;
+        fKeys.push([anim, d]);
+        fLoads.push(loadImage(file));
+      }
+    }
+    const fImgs = await Promise.all(fLoads);
+    fKeys.forEach(([anim, d], i) => { female.sheets[anim][d] = fImgs[i]; });
+
+    // new zombies: side-view 128x128 sheets
+    const nzVariants = ["Zombie_2", "Zombie_3", "Zombie_4"];
+    const nzAnims = ["Idle", "Walk", "Attack", "Hurt", "Dead"];
+    const nzFrames = {
+      Zombie_2: { Idle: 6, Walk: 10, Attack: 5, Hurt: 4, Dead: 5 },
+      Zombie_3: { Idle: 6, Walk: 10, Attack: 4, Hurt: 4, Dead: 5 },
+      Zombie_4: { Idle: 7, Walk: 12, Attack: 10, Hurt: 4, Dead: 5 },
+    };
+    const newZ = { variants: nzVariants, frames: nzFrames, sheets: {}, tile: 128 };
+    const zLoads = [];
+    const zKeys = [];
+    for (const v of nzVariants) {
+      newZ.sheets[v] = {};
+      for (const a of nzAnims) {
+        zKeys.push([v, a]);
+        zLoads.push(loadImage(`assets/zombies/${v}/${a}.png`));
+      }
+    }
+    const nzImgs = await Promise.all(zLoads);
+    zKeys.forEach(([v, a], i) => { newZ.sheets[v][a] = nzImgs[i]; });
+
     return {
+      female, newZ,
       p: { layout: pl, weapons: pw, hit: ph, rows: pRows, anims: pAnims, attack, foot: ellipseRect(ph),
         sheet: imgs[0], shadow: imgs[1], hands: imgs[2], smear: imgs[3], rot, weaponNames,
         frame: pl.frame || 64, pivot: ph.pivot || [32, 56] },
       z: { layout: zl, hit: zh, rows: zRows, anims: zAnims, attack: zAttack, foot: ellipseRect(zh),
-        fx: zimgs[0], shadow: zimgs[1], sheets: zsheets, variants: zVariants,
+        fx: zimgs[0], shadow: zimgs[1], sheets: zsheets, variants: nzVariants,
         frame: zl.frame || 64, pivot: zh.pivot || [32, 56], hurtActive: zh.hurtbox_active || {} },
     };
   }
@@ -800,12 +843,20 @@
       else { this.setState("hurt"); this.setAnim("hurt"); this.anim = "hurt"; this.frame = 0; this.t = 0; this.done = false; }
     }
     advance(dt) {
-      const info = A.z.anims[this.anim];
+      const info = A.z.anims[this.anim] || { frames: 6, durs: [120,120,120,120,120,120], loop: true };
+      // clamp to the new sheet's frame count so anims match the art
+      const NZ = A.newZ;
+      const animMap = { idle: "Idle", sense: "Idle", walk: "Walk", run: "Walk", attack: "Attack", hurt: "Hurt", death: "Dead", decay: "Dead", fade: "Dead" };
+      const sheetAnim = animMap[this.anim] || "Idle";
+      const sheetFrames = (NZ && NZ.frames[this.variant] && NZ.frames[this.variant][sheetAnim]) || info.frames;
+      const frames = Math.min(info.frames, sheetFrames);
       this.t += dt * 1000;
-      while (!this.done && this.t >= info.durs[this.frame]) {
-        this.t -= info.durs[this.frame];
-        if (this.frame + 1 >= info.frames) {
-          if (info.loop) this.frame = 0; else { this.done = true; }
+      const dur = info.durs[Math.min(this.frame, info.durs.length - 1)] || 120;
+      while (!this.done && this.t >= dur) {
+        this.t -= dur;
+        if (this.frame + 1 >= frames) {
+          if (info.loop && this.anim !== "death" && this.anim !== "attack" && this.anim !== "hurt") this.frame = 0;
+          else { this.done = true; }
         } else this.frame++;
       }
     }
@@ -985,28 +1036,28 @@
     ctx.imageSmoothingEnabled = false;
   }
 
+  function femaleDir(p) {
+    // 6-direction pack: Down, Up, Left_Down, Left_Up, Right_Down, Right_Up
+    const d = p.dir;
+    if (d === "up") return "Up";
+    if (d === "down") return "Down";
+    if (d === "left") return "Left_Down";
+    if (d === "right") return "Right_Down";
+    return "Down";
+  }
   function drawPlayer() {
-    const p = player, P = A.p, F = P.frame;
-    const ox = Math.round(p.x - P.pivot[0] - camX), oy = Math.round(p.y - P.pivot[1] - camY);
-    const row = P.rows[p.anim + "_" + p.dir];
-    const sx = p.frame * F, sy = row.index * F;
+    const p = player;
+    const F = A.female;
+    const anim = p.dead ? "death" : (p.anim === ATTACK ? "attack" : (p.anim === "run" ? "run" : (p.anim === "walk" ? "walk" : "idle")));
+    const sheet = F.sheets[anim] || F.sheets.idle;
+    const dir = femaleDir(p);
+    const img = sheet[dir] || sheet.Down;
+    const frame = (p.frame || 0) % F.frames;
+    const ox = Math.round(p.x - 32 - camX), oy = Math.round(p.y - 52 - camY);
     ctx.save();
     if (p.dead) ctx.globalAlpha = 0.45;
     else if (p.flash > 0 && Math.floor(p.flash * 30) % 2 === 0) ctx.globalAlpha = 0.55;
-    ctx.drawImage(P.shadow, ox, oy);
-
-    const att = p.anim === ATTACK ? P.attack[p.dir][p.frame] : null;
-    const w = att ? att.w : carryPose(p);
-    const ranged = !!RANGED_SPRITES[p.weapon];
-    if (att && att.w.smear) ctx.drawImage(P.smear, sx, sy, F, F, ox, oy, F, F); // always under body
-    if (w && w.order === "behind" && !ranged) drawWeapon(w, ox, oy);
-    ctx.drawImage(P.sheet, sx, sy, F, F, ox, oy, F, F);
-    if (ranged) {
-      drawRangedWeapon(ox, oy);
-    } else if (w && w.order !== "behind") {
-      drawWeapon(w, ox, oy);
-      if (att) ctx.drawImage(P.hands, sx, sy, F, F, ox, oy, F, F); // fingers over handle
-    }
+    ctx.drawImage(img, frame * F.frame, 0, F.frame, F.frame, ox, oy, F.frame, F.frame);
     ctx.restore();
   }
   // Outside of the swing, carry the weapon low at the hand anchor from layout.json.
@@ -1051,19 +1102,25 @@
   }
 
   function drawZombie(z) {
-    const Z = A.z, F = Z.frame;
-    const ox = Math.round(z.x - Z.pivot[0] - camX), oy = Math.round(z.y - Z.pivot[1] - camY);
-    const row = Z.rows[z.anim + "_" + z.dir];
-    const sx = z.frame * F, sy = row.index * F;
+    const NZ = A.newZ;
+    const variant = NZ.sheets[z.variant] ? z.variant : NZ.variants[0];
+    const animMap = { idle: "Idle", sense: "Idle", walk: "Walk", run: "Walk", attack: "Attack", hurt: "Hurt", death: "Dead", decay: "Dead", fade: "Dead" };
+    const anim = animMap[z.anim] || "Idle";
+    const img = NZ.sheets[variant][anim];
+    const count = NZ.frames[variant][anim] || 1;
+    const frame = Math.min(z.frame || 0, count - 1);
+    const tile = NZ.tile;
+    const dw = 56, dh = 56;
+    const faceLeft = z.dir === "left" || (z.dir !== "right" && player.x < z.x);
+    const ox = Math.round(z.x - dw / 2 - camX), oy = Math.round(z.y - dh + 8 - camY);
     ctx.save();
     ctx.globalAlpha = z.alpha;
-    ctx.drawImage(Z.shadow, sx, sy, F, F, ox, oy, F, F);
-    const sheets = Z.sheets[z.variant];
-    if (z.anim === "death" || z.anim === "decay") {
-      ctx.drawImage(sheets.full, sx, sy, F, F, ox, oy, F, F); // composite keeps the pool under the corpse
+    if (faceLeft) {
+      ctx.translate(ox + dw, oy);
+      ctx.scale(-1, 1);
+      ctx.drawImage(img, frame * tile, 0, tile, tile, 0, 0, dw, dh);
     } else {
-      ctx.drawImage(sheets.nofx, sx, sy, F, F, ox, oy, F, F);
-      if (z.anim === "hurt") ctx.drawImage(Z.fx, sx, sy, F, F, ox, oy, F, F); // blood spray layer
+      ctx.drawImage(img, frame * tile, 0, tile, tile, ox, oy, dw, dh);
     }
     ctx.restore();
     // small red exclamation mark right above head on notice
