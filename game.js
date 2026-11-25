@@ -677,20 +677,22 @@
       // tiny drift while swinging keeps it responsive without sliding
       moveWithCollision(p, P.foot, ix * 18 * dt, iy * 18 * dt);
     }
-    // advance animation
-    const info = P.anims[p.anim];
+    // advance the female sheet: exactly 6 frames, 64x64 each
+    const FEMALE_FRAMES = 6;
+    const frameMs = p.anim === ATTACK ? 70 : (p.anim === "run" ? 80 : 110);
     p.t += dt * 1000;
-    while (p.t >= info.durs[p.frame]) {
-      p.t -= info.durs[p.frame];
+    while (p.t >= frameMs) {
+      p.t -= frameMs;
       p.frame++;
-      if (p.frame >= info.frames) {
+      if (p.frame >= FEMALE_FRAMES) {
         if (p.anim === ATTACK) { setPlayerAnim("idle"); break; }
         p.frame = 0;
       }
     }
-    // hit check: only on frames flagged active in hitboxes.json
+    // hit check: use a mid-swing window since the old per-frame boxes don't match her sheet
     if (p.anim === ATTACK) {
-      const f = P.attack[p.dir][p.frame];
+      const atkFrames = P.attack[p.dir] || [];
+      const f = atkFrames[Math.min(p.frame, atkFrames.length - 1)];
       if (f && f.active) {
         const r = f.reach[p.weapon];
         if (r) {
@@ -843,22 +845,21 @@
       else { this.setState("hurt"); this.setAnim("hurt"); this.anim = "hurt"; this.frame = 0; this.t = 0; this.done = false; }
     }
     advance(dt) {
-      const info = A.z.anims[this.anim] || { frames: 6, durs: [120,120,120,120,120,120], loop: true };
-      // clamp to the new sheet's frame count so anims match the art
       const NZ = A.newZ;
       const animMap = { idle: "Idle", sense: "Idle", walk: "Walk", run: "Walk", attack: "Attack", hurt: "Hurt", death: "Dead", decay: "Dead", fade: "Dead" };
       const sheetAnim = animMap[this.anim] || "Idle";
-      const sheetFrames = (NZ && NZ.frames[this.variant] && NZ.frames[this.variant][sheetAnim]) || info.frames;
-      const frames = Math.min(info.frames, sheetFrames);
+      const frames = (NZ && NZ.frames[this.variant] && NZ.frames[this.variant][sheetAnim]) || 6;
+      const loops = sheetAnim === "Idle" || sheetAnim === "Walk";
+      const dur = sheetAnim === "Attack" ? 90 : (sheetAnim === "Walk" ? 100 : 140);
       this.t += dt * 1000;
-      const dur = info.durs[Math.min(this.frame, info.durs.length - 1)] || 120;
       while (!this.done && this.t >= dur) {
         this.t -= dur;
         if (this.frame + 1 >= frames) {
-          if (info.loop && this.anim !== "death" && this.anim !== "attack" && this.anim !== "hurt") this.frame = 0;
-          else { this.done = true; }
+          if (loops) this.frame = 0;
+          else { this.done = true; this.frame = frames - 1; }
         } else this.frame++;
       }
+      if (this.frame >= frames) this.frame = frames - 1;
     }
     canSeePlayer() {
       if (player.dead) return false;
@@ -1052,12 +1053,13 @@
     const sheet = F.sheets[anim] || F.sheets.idle;
     const dir = femaleDir(p);
     const img = sheet[dir] || sheet.Down;
-    const frame = (p.frame || 0) % F.frames;
+    const frame = Math.max(0, Math.min(F.frames - 1, p.frame | 0));
     const ox = Math.round(p.x - 32 - camX), oy = Math.round(p.y - 52 - camY);
     ctx.save();
     if (p.dead) ctx.globalAlpha = 0.45;
     else if (p.flash > 0 && Math.floor(p.flash * 30) % 2 === 0) ctx.globalAlpha = 0.55;
-    ctx.drawImage(img, frame * F.frame, 0, F.frame, F.frame, ox, oy, F.frame, F.frame);
+    // cut exactly one 64x64 cell, then the next, never a partial
+    ctx.drawImage(img, frame * 64, 0, 64, 64, ox, oy, 64, 64);
     ctx.restore();
   }
   // Outside of the swing, carry the weapon low at the hand anchor from layout.json.
@@ -1108,19 +1110,19 @@
     const anim = animMap[z.anim] || "Idle";
     const img = NZ.sheets[variant][anim];
     const count = NZ.frames[variant][anim] || 1;
-    const frame = Math.min(z.frame || 0, count - 1);
-    const tile = NZ.tile;
-    const dw = 56, dh = 56;
+    const frame = Math.max(0, Math.min(count - 1, z.frame | 0));
+    const dw = 64, dh = 64;
     const faceLeft = z.dir === "left" || (z.dir !== "right" && player.x < z.x);
-    const ox = Math.round(z.x - dw / 2 - camX), oy = Math.round(z.y - dh + 8 - camY);
+    const ox = Math.round(z.x - dw / 2 - camX), oy = Math.round(z.y - dh + 10 - camY);
     ctx.save();
     ctx.globalAlpha = z.alpha;
+    // cut exactly one 128x128 cell, then the next
     if (faceLeft) {
       ctx.translate(ox + dw, oy);
       ctx.scale(-1, 1);
-      ctx.drawImage(img, frame * tile, 0, tile, tile, 0, 0, dw, dh);
+      ctx.drawImage(img, frame * 128, 0, 128, 128, 0, 0, dw, dh);
     } else {
-      ctx.drawImage(img, frame * tile, 0, tile, tile, ox, oy, dw, dh);
+      ctx.drawImage(img, frame * 128, 0, 128, 128, ox, oy, dw, dh);
     }
     ctx.restore();
     // small red exclamation mark right above head on notice
